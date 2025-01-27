@@ -1,23 +1,26 @@
-// This file Copyright © 2009-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
 
-#include <memory>
-#include <string>
+#include "RelocateDialog.h"
 
-#include <glibmm.h>
+#include "GtkCompat.h"
+#include "PathButton.h"
+#include "Prefs.h" /* gtr_pref_string_get */
+#include "Session.h"
+#include "Utils.h"
+
 #include <glibmm/i18n.h>
+#include <glibmm/main.h>
+#include <glibmm/ustring.h>
+#include <gtkmm/checkbutton.h>
+#include <gtkmm/messagedialog.h>
 
 #include <fmt/core.h>
 
-#include <libtransmission/transmission.h>
-
-#include "PathButton.h"
-#include "Prefs.h" /* gtr_pref_string_get */
-#include "RelocateDialog.h"
-#include "Session.h"
-#include "Utils.h"
+#include <memory>
+#include <string>
 
 namespace
 {
@@ -34,9 +37,11 @@ public:
         Glib::RefPtr<Gtk::Builder> const& builder,
         Glib::RefPtr<Session> const& core,
         std::vector<tr_torrent_id_t> const& torrent_ids);
+    Impl(Impl&&) = delete;
+    Impl(Impl const&) = delete;
+    Impl& operator=(Impl&&) = delete;
+    Impl& operator=(Impl const&) = delete;
     ~Impl();
-
-    TR_DISABLE_COPY_MOVE(Impl)
 
 private:
     void onResponse(int response);
@@ -72,7 +77,7 @@ void RelocateDialog::Impl::startMovingNextTorrent()
 
     if (tor != nullptr)
     {
-        tr_torrentSetLocation(tor, targetLocation.c_str(), do_move_, nullptr, &done_);
+        tr_torrentSetLocation(tor, targetLocation.c_str(), do_move_, &done_);
     }
 
     torrent_ids_.pop_back();
@@ -96,17 +101,19 @@ bool RelocateDialog::Impl::onTimer()
             TR_GTK_BUTTONS_TYPE(CLOSE),
             true);
 
-        timer_.block();
         d->signal_response().connect(
             [this, d](int /*response*/) mutable
             {
-                timer_.unblock();
                 d.reset();
+                message_dialog_.reset();
+                dialog_.close();
             });
 
         d->show();
+        return false;
     }
-    else if (done_ == TR_LOC_DONE)
+
+    if (done_ == TR_LOC_DONE)
     {
         if (!torrent_ids_.empty())
         {
@@ -114,11 +121,13 @@ bool RelocateDialog::Impl::onTimer()
         }
         else
         {
+            message_dialog_.reset();
             dialog_.close();
+            return false;
         }
     }
 
-    return G_SOURCE_CONTINUE;
+    return true;
 }
 
 void RelocateDialog::Impl::onResponse(int response)

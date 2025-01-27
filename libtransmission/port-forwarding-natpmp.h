@@ -1,4 +1,4 @@
-// This file Copyright © 2007-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -12,10 +12,11 @@
 #include <ctime> // time_t
 #include <cstdint>
 
-#include "transmission.h" // tr_port_forwarding_state
-
 #include "natpmp.h"
-#include "net.h" // tr_port
+
+#include "libtransmission/transmission.h" // tr_port_forwarding_state
+
+#include "libtransmission/net.h" // tr_port
 
 class tr_natpmp
 {
@@ -39,8 +40,8 @@ public:
     {
         tr_port_forwarding_state state = TR_PORT_ERROR;
 
-        tr_port local_port = {};
-        tr_port advertised_port = {};
+        tr_port local_port;
+        tr_port advertised_port;
     };
 
     PulseResult pulse(tr_port local_port, bool is_enabled);
@@ -67,8 +68,8 @@ private:
 
     natpmp_t natpmp_ = {};
 
-    tr_port local_port_ = {};
-    tr_port advertised_port_ = {};
+    tr_port local_port_;
+    tr_port advertised_port_;
 
     time_t renew_time_ = 0;
     time_t command_time_ = 0;

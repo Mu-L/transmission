@@ -1,4 +1,4 @@
-// This file Copyright © 2009-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -8,18 +8,17 @@
 #include <cstdint> // uint64_t
 #include <map>
 #include <memory>
+#include <set>
 
 #include <QAbstractItemModel>
-#include <QSet>
 
-#include <libtransmission/tr-macros.h>
+#include "Typedefs.h" // file_indices_t
 
 class FileTreeItem;
 
 class FileTreeModel final : public QAbstractItemModel
 {
     Q_OBJECT
-    TR_DISABLE_COPY_MOVE(FileTreeModel)
 
 public:
     enum
@@ -42,6 +41,10 @@ public:
     };
 
     FileTreeModel(QObject* parent = nullptr, bool is_editable = true);
+    FileTreeModel& operator=(FileTreeModel&&) = delete;
+    FileTreeModel& operator=(FileTreeModel const&) = delete;
+    FileTreeModel(FileTreeModel&&) = delete;
+    FileTreeModel(FileTreeModel const&) = delete;
     ~FileTreeModel() override;
 
     void setEditable(bool editable);
@@ -77,8 +80,8 @@ public:
     bool setData(QModelIndex const& index, QVariant const& value, int role = Qt::EditRole) override;
 
 signals:
-    void priorityChanged(QSet<int> const& file_indices, int);
-    void wantedChanged(QSet<int> const& file_indices, bool);
+    void priorityChanged(file_indices_t const& file_indices, int);
+    void wantedChanged(file_indices_t const& file_indices, bool);
     void pathEdited(QString const& oldpath, QString const& new_name);
     void openRequested(QString const& path);
 
@@ -89,7 +92,7 @@ private:
         QModelIndex const&,
         int first_column,
         int last_column,
-        QSet<QModelIndex>* visited_parent_indices = nullptr);
+        std::set<QModelIndex>* visited_parent_indices = nullptr);
     void emitSubtreeChanged(QModelIndex const&, int first_column, int last_column);
     FileTreeItem* findItemForFileIndex(int file_index) const;
     FileTreeItem* itemFromIndex(QModelIndex const&) const;

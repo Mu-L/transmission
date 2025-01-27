@@ -1,21 +1,37 @@
-// This file Copyright © 2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
 
-#include <vector>
-
-#include <glibmm.h>
-#include <glibmm/i18n.h>
-
 #include "PathButton.h"
+
+#include "GtkCompat.h"
+#include "Utils.h"
+
+#include <giomm/file.h>
+#include <glibmm/i18n.h>
+#include <gtkmm/box.h>
+#if GTKMM_CHECK_VERSION(4, 0, 0)
+#include <glibmm/error.h>
+#include <glibmm/property.h>
+#include <gtkmm/dialog.h>
+#include <gtkmm/filechoosernative.h>
+#include <gtkmm/image.h>
+#include <gtkmm/label.h>
+#include <gtkmm/separator.h>
+#endif
+
+#include <vector>
 
 class PathButton::Impl
 {
 public:
     explicit Impl(PathButton& widget);
-
-    TR_DISABLE_COPY_MOVE(Impl)
+    Impl(Impl&&) = delete;
+    Impl(Impl const&) = delete;
+    Impl& operator=(Impl&&) = delete;
+    Impl& operator=(Impl const&) = delete;
+    ~Impl() = default;
 
 #if GTKMM_CHECK_VERSION(4, 0, 0)
     std::string const& get_filename() const;
@@ -40,9 +56,9 @@ private:
 #endif
 
 private:
+#if GTKMM_CHECK_VERSION(4, 0, 0)
     PathButton& widget_;
 
-#if GTKMM_CHECK_VERSION(4, 0, 0)
     Glib::Property<Gtk::FileChooser::Action> action_;
     Glib::Property<Glib::ustring> title_;
 
@@ -58,9 +74,9 @@ private:
 #endif
 };
 
-PathButton::Impl::Impl(PathButton& widget)
-    : widget_(widget)
+PathButton::Impl::Impl([[maybe_unused]] PathButton& widget)
 #if GTKMM_CHECK_VERSION(4, 0, 0)
+    : widget_(widget)
     , action_(widget, "action", Gtk::FileChooser::Action::OPEN)
     , title_(widget, "title", {})
     , image_(Gtk::make_managed<Gtk::Image>())
@@ -132,10 +148,12 @@ void PathButton::Impl::show_dialog()
 {
     auto const title = title_.get_value();
 
-    auto dialog = std::make_shared<Gtk::FileChooserDialog>(!title.empty() ? title : _("Select a File"), action_.get_value());
-    dialog->set_transient_for(*static_cast<Gtk::Window*>(widget_.get_root()));
-    dialog->add_button(_("_Cancel"), Gtk::ResponseType::CANCEL);
-    dialog->add_button(_("_Open"), Gtk::ResponseType::ACCEPT);
+    auto dialog = Gtk::FileChooserNative::create(
+        !title.empty() ? title : _("Select a File"),
+        action_.get_value(),
+        _("_Open"),
+        _("_Cancel"));
+    dialog->set_transient_for(gtr_widget_get_window(widget_));
     dialog->set_modal(true);
 
     if (!current_file_.empty())
@@ -157,7 +175,7 @@ void PathButton::Impl::show_dialog()
     dialog->signal_response().connect(
         [this, dialog](int response) mutable
         {
-            if (response == Gtk::ResponseType::ACCEPT)
+            if (response == TR_GTK_RESPONSE_TYPE(ACCEPT))
             {
                 set_filename(dialog->get_file()->get_path());
                 selection_changed_.emit();

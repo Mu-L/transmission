@@ -1,4 +1,4 @@
-// This file Copyright © 2007-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -10,8 +10,6 @@
 
 @interface DragOverlayWindow ()
 
-@property(nonatomic, readonly) tr_session* fLib;
-
 @property(nonatomic, readonly) NSViewAnimation* fFadeInAnimation;
 @property(nonatomic, readonly) NSViewAnimation* fFadeOutAnimation;
 
@@ -19,13 +17,11 @@
 
 @implementation DragOverlayWindow
 
-- (instancetype)initWithLib:(tr_session*)lib forWindow:(NSWindow*)window
+- (instancetype)initForWindow:(NSWindow*)window
 {
     if ((self = ([super initWithContentRect:window.frame styleMask:NSWindowStyleMaskBorderless backing:NSBackingStoreBuffered
                                       defer:NO])))
     {
-        _fLib = lib;
-
         self.backgroundColor = [NSColor colorWithCalibratedWhite:0.0 alpha:0.5];
         self.alphaValue = 0.0;
         self.opaque = NO;
@@ -54,12 +50,7 @@
     return self;
 }
 
-- (void)dealloc
-{
-    [NSNotificationCenter.defaultCenter removeObserver:self];
-}
-
-- (void)setTorrents:(NSArray*)files
+- (void)setTorrents:(NSArray<NSString*>*)files
 {
     uint64_t size = 0;
     NSUInteger count = 0;
@@ -73,17 +64,25 @@
             [file.pathExtension caseInsensitiveCompare:@"torrent"] == NSOrderedSame)
         {
             auto metainfo = tr_torrent_metainfo{};
-            if (metainfo.parseTorrentFile(file.UTF8String))
+            if (metainfo.parse_torrent_file(file.UTF8String))
             {
                 ++count;
 
-                size += metainfo.totalSize();
+                size += metainfo.total_size();
 
-                auto const n_files = metainfo.fileCount();
+                auto const n_files = metainfo.file_count();
                 fileCount += n_files;
-                if (n_files == 1)
+                // only useful when one torrent
+                if (count == 1)
                 {
-                    name = @(metainfo.name().c_str());
+                    if (n_files == 1)
+                    {
+                        name = [NSString convertedStringFromCString:metainfo.file_subpath(0).c_str()];
+                    }
+                    else
+                    {
+                        name = @(metainfo.name().c_str());
+                    }
                 }
             }
         }
@@ -105,7 +104,7 @@
         }
         else
         {
-            fileString = [NSString stringWithFormat:NSLocalizedString(@"%lu files", "Drag overlay -> torrents"), fileCount];
+            fileString = [NSString localizedStringWithFormat:NSLocalizedString(@"%lu files", "Drag overlay -> torrents"), fileCount];
         }
         secondString = [NSString stringWithFormat:@"%@, %@", fileString, secondString];
     }
@@ -113,11 +112,12 @@
     NSImage* icon;
     if (count == 1)
     {
-        icon = [NSWorkspace.sharedWorkspace iconForFileType:name ? name.pathExtension : NSFileTypeForHFSTypeCode(kGenericFolderIcon)];
+        icon = [NSWorkspace.sharedWorkspace
+            iconForFileType:fileCount <= 1 ? name.pathExtension : NSFileTypeForHFSTypeCode(kGenericFolderIcon)];
     }
     else
     {
-        name = [NSString stringWithFormat:NSLocalizedString(@"%lu Torrent Files", "Drag overlay -> torrents"), count];
+        name = [NSString localizedStringWithFormat:NSLocalizedString(@"%lu Torrent Files", "Drag overlay -> torrents"), count];
         secondString = [secondString stringByAppendingString:@" total"];
         icon = [NSImage imageNamed:@"TransmissionDocument.icns"];
     }

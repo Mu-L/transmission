@@ -31,14 +31,16 @@ For a more detailed description, and dependencies, visit [How to Build Transmiss
 
 ### Building a Transmission release from the command line
 
-    $ tar xf transmission-3.00.tar.xz
-    $ cd transmission-3.00
-    $ mkdir build
-    $ cd build
-    $ # Use -DCMAKE_BUILD_TYPE=RelWithDebInfo to build optimized binary.
-    $ cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
-    $ make
-    $ sudo make install
+```bash
+$ tar xf transmission-4.0.6.tar.xz
+$ cd transmission-4.0.6
+# Use -DCMAKE_BUILD_TYPE=RelWithDebInfo to build optimized binary with debug information. (preferred)
+# Use -DCMAKE_BUILD_TYPE=Release to build full optimized binary.
+$ cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+$ cd build
+$ cmake --build .
+$ sudo cmake --install .
+```
 
 ### Building Transmission from the nightly builds
 
@@ -48,27 +50,28 @@ If you're new to building programs from source code, this is typically easier th
 
 ### Building Transmission from Git (first time)
 
-    $ git clone https://github.com/transmission/transmission Transmission
-    $ cd Transmission
-    $ git submodule update --init --recursive
-    $ mkdir build
-    $ cd build
-    $ # Use -DCMAKE_BUILD_TYPE=RelWithDebInfo to build optimized binary.
-    $ cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
-    $ make
-    $ sudo make install
+```bash
+$ git clone --recurse-submodules https://github.com/transmission/transmission Transmission
+$ cd Transmission
+# Use -DCMAKE_BUILD_TYPE=RelWithDebInfo to build optimized binary with debug information. (preferred)
+# Use -DCMAKE_BUILD_TYPE=Release to build full optimized binary.
+$ cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+$ cd build
+$ cmake --build .
+$ sudo cmake --install .
+```
 
 ### Building Transmission from Git (updating)
 
-    $ cd Transmission/build
-    $ make clean
-    $ git submodule foreach --recursive git clean -xfd
-    $ git pull --rebase --prune
-    $ git submodule update --recursive
-    $ # Use -DCMAKE_BUILD_TYPE=RelWithDebInfo to build optimized binary.
-    $ cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
-    $ make
-    $ sudo make install
+```bash
+$ cd Transmission/build
+$ cmake --build . -t clean
+$ git submodule foreach --recursive git clean -xfd
+$ git pull --rebase --prune
+$ git submodule update --init --recursive
+$ cmake --build .
+$ sudo cmake --install .
+```
 
 ## Contributing
 
@@ -78,13 +81,17 @@ You would want to setup your editor to make use of the .clang-format file locate
 
 If for some reason you are unwilling or unable to do so, there is a shell script which you can use: `./code_style.sh`
 
+### Translations
+
+See [language translations](docs/Translating.md).
+
 ## Sponsors
 
 <table>
  <tbody>
   <tr>
    <td align="center"><img alt="[MacStadium]" src="https://uploads-ssl.webflow.com/5ac3c046c82724970fc60918/5c019d917bba312af7553b49_MacStadium-developerlogo.png" height="30"/></td>
-   <td>macOS CI builds are running on a M1 Mac Mini provided by <a href="https://www.macstadium.com/opensource">MacStadium</a></td>
+   <td>macOS CI builds are running on a M1 Mac Mini provided by <a href="https://www.macstadium.com/company/opensource">MacStadium</a></td>
   </tr>
   <tr>
    <td align="center"><img alt="[SignPath]" src="https://avatars.githubusercontent.com/u/34448643" height="30"/></td>

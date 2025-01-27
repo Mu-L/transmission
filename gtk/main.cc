@@ -1,28 +1,37 @@
-// This file Copyright © 2005-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
-#include <cstdio>
-#include <string>
-
-#include <glibmm.h>
-#include <glibmm/i18n.h>
-#include <gtkmm.h>
-
-#include <fmt/core.h>
+#include "Application.h"
+#include "GtkCompat.h"
+#include "Notify.h"
+#include "Prefs.h"
+#include "Utils.h"
 
 #include <libtransmission/transmission.h>
 #include <libtransmission/utils.h>
 #include <libtransmission/version.h>
 
-#include "Application.h"
-#include "Notify.h"
-#include "Prefs.h"
-#include "Utils.h"
+#include <giomm/file.h>
+#include <giomm/init.h>
+#include <glibmm/i18n.h>
+#include <glibmm/init.h>
+#include <glibmm/miscutils.h>
+#include <glibmm/objectbase.h>
+#include <glibmm/optioncontext.h>
+#include <glibmm/optionentry.h>
+#include <glibmm/optiongroup.h>
+#include <glibmm/ustring.h>
+#include <glibmm/wrap.h>
+#include <gtkmm.h>
+
+#include <fmt/core.h>
+
+#include <cstdio>
+#include <string>
 
 namespace
 {
-
 auto const* const AppConfigDirName = "transmission";
 auto const* const AppTranslationDomainName = "transmission-gtk";
 auto const* const AppName = "transmission-gtk";
@@ -35,13 +44,15 @@ Glib::OptionEntry create_option_entry(Glib::ustring const& long_name, gchar shor
     entry.set_description(description);
     return entry;
 }
-
 } // namespace
 
 int main(int argc, char** argv)
 {
+    /* init libtransmission */
+    tr_lib_init();
+
     /* init i18n */
-    setlocale(LC_ALL, "");
+    tr_locale_set_global("");
     bindtextdomain(AppTranslationDomainName, TRANSMISSIONLOCALEDIR);
     bind_textdomain_codeset(AppTranslationDomainName, "UTF-8");
     textdomain(AppTranslationDomainName);
@@ -55,14 +66,14 @@ int main(int argc, char** argv)
     Gio::File::create_for_path(".");
     Glib::wrap_register(
         g_type_from_name("GLocalFile"),
-        [](GObject* object) -> Glib::ObjectBase* { return new Gio::File((GFile*)object); });
+        [](GObject* object) -> Glib::ObjectBase* { return new Gio::File(G_FILE(object)); });
     g_type_ensure(Gio::File::get_type());
 
     /* default settings */
     std::string config_dir;
     bool show_version = false;
     bool start_paused = false;
-    bool is_iconified = false;
+    bool start_iconified = false;
 
     /* parse the command line */
     auto const config_dir_option = create_option_entry("config-dir", 'g', _("Where to look for configuration files"));
@@ -73,7 +84,7 @@ int main(int argc, char** argv)
     Glib::OptionGroup main_group({}, {});
     main_group.add_entry_filename(config_dir_option, config_dir);
     main_group.add_entry(paused_option, start_paused);
-    main_group.add_entry(minimized_option, is_iconified);
+    main_group.add_entry(minimized_option, start_iconified);
     main_group.add_entry(version_option, show_version);
 
     Glib::OptionContext option_context(_("[torrent files or urls]"));
@@ -93,7 +104,7 @@ int main(int argc, char** argv)
         fmt::print(
             stderr,
             _("Run '{program} --help' to see a full list of available command line options.\n"),
-            fmt::arg("program", argv[0]));
+            fmt::arg("program", *argv));
         return 1;
     }
 
@@ -104,10 +115,11 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    /* init the unit formatters */
-    tr_formatter_mem_init(mem_K, _(mem_K_str), _(mem_M_str), _(mem_G_str), _(mem_T_str));
-    tr_formatter_size_init(disk_K, _(disk_K_str), _(disk_M_str), _(disk_G_str), _(disk_T_str));
-    tr_formatter_speed_init(speed_K, _(speed_K_str), _(speed_M_str), _(speed_G_str), _(speed_T_str));
+    // init the unit formatters
+    using Config = libtransmission::Values::Config;
+    Config::Speed = { Config::Base::Kilo, _("B/s"), _("kB/s"), _("MB/s"), _("GB/s"), _("TB/s") };
+    Config::Memory = { Config::Base::Kibi, _("B"), _("KiB"), _("MiB"), _("GiB"), _("TiB") };
+    Config::Storage = { Config::Base::Kilo, _("B"), _("kB"), _("MB"), _("GB"), _("TB") };
 
     /* set up the config dir */
     if (std::empty(config_dir))
@@ -122,5 +134,5 @@ int main(int argc, char** argv)
     gtr_notify_init();
 
     /* init the application for the specified config dir */
-    return Application(config_dir, start_paused, is_iconified).run(argc, argv);
+    return Application(config_dir, start_paused, start_iconified).run(argc, argv);
 }

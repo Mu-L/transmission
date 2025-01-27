@@ -1,4 +1,4 @@
-// This file Copyright © 2008-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -13,15 +13,15 @@
 
 static CGFloat const kRowSmallHeight = 18.0;
 
-typedef NS_ENUM(unsigned int, fileCheckMenuTag) { //
-    FILE_CHECK_TAG,
-    FILE_UNCHECK_TAG
+typedef NS_ENUM(NSUInteger, FileCheckMenuTag) { //
+    FileCheckMenuTagCheck,
+    FileCheckMenuTagUncheck
 };
 
-typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
-    FILE_PRIORITY_HIGH_TAG,
-    FILE_PRIORITY_NORMAL_TAG,
-    FILE_PRIORITY_LOW_TAG
+typedef NS_ENUM(NSUInteger, FilePriorityMenuTag) { //
+    FilePriorityMenuTagHigh,
+    FilePriorityMenuTagNormal,
+    FilePriorityMenuTagLow
 };
 
 @interface FileOutlineController ()
@@ -38,10 +38,8 @@ typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
 
 - (void)awakeFromNib
 {
+    [super awakeFromNib];
     self.fFileList = [[NSMutableArray alloc] init];
-
-    self.fOutline.doubleAction = @selector(revealFile:);
-    self.fOutline.target = self;
 
     //set table header tool tips
     [self.fOutline tableColumnWithIdentifier:@"Check"].headerToolTip = NSLocalizedString(@"Download", "file table -> header tool tip");
@@ -97,7 +95,7 @@ typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
         __block BOOL filter = NO;
         if (components)
         {
-            [components enumerateObjectsWithOptions:NSEnumerationConcurrent usingBlock:^(NSString* obj, NSUInteger idx, BOOL* stop) {
+            [components enumerateObjectsWithOptions:NSEnumerationConcurrent usingBlock:^(NSString* obj, NSUInteger /*idx*/, BOOL* stop) {
                 if ([item.name rangeOfString:obj options:(NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch)].location == NSNotFound)
                 {
                     filter = YES;
@@ -356,7 +354,7 @@ typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
 
 - (void)setCheck:(id)sender
 {
-    NSInteger state = [sender tag] == FILE_UNCHECK_TAG ? NSControlStateValueOff : NSControlStateValueOn;
+    NSInteger state = [sender tag] == FileCheckMenuTagUncheck ? NSControlStateValueOff : NSControlStateValueOn;
 
     NSIndexSet* indexSet = self.fOutline.selectedRowIndexes;
     NSMutableIndexSet* itemIndexes = [NSMutableIndexSet indexSet];
@@ -408,13 +406,13 @@ typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
     tr_priority_t priority;
     switch ([sender tag])
     {
-    case FILE_PRIORITY_HIGH_TAG:
+    case FilePriorityMenuTagHigh:
         priority = TR_PRI_HIGH;
         break;
-    case FILE_PRIORITY_NORMAL_TAG:
+    case FilePriorityMenuTagNormal:
         priority = TR_PRI_NORMAL;
         break;
-    case FILE_PRIORITY_LOW_TAG:
+    case FilePriorityMenuTagLow:
         priority = TR_PRI_LOW;
         break;
     default:
@@ -465,7 +463,7 @@ typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
         [FileRenameSheetController presentSheetForTorrent:torrent modalForWindow:self.fOutline.window completionHandler:^(BOOL didRename) {
             if (didRename)
             {
-                [NSNotificationCenter.defaultCenter postNotificationName:@"UpdateQueue" object:self];
+                [NSNotificationCenter.defaultCenter postNotificationName:@"UpdateTorrentsState" object:nil];
                 [NSNotificationCenter.defaultCenter postNotificationName:@"ResetInspector" object:self
                                                                 userInfo:@{ @"Torrent" : torrent }];
             }
@@ -520,7 +518,7 @@ typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
             [itemIndexes addIndexes:node.indexes];
         }
 
-        NSInteger state = (menuItem.tag == FILE_CHECK_TAG) ? NSControlStateValueOn : NSControlStateValueOff;
+        NSInteger state = (menuItem.tag == FileCheckMenuTagCheck) ? NSControlStateValueOn : NSControlStateValueOff;
         return [self.torrent checkForFiles:itemIndexes] != state && [self.torrent canChangeDownloadCheckForFiles:itemIndexes];
     }
 
@@ -555,13 +553,13 @@ typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
         tr_priority_t priority;
         switch (menuItem.tag)
         {
-        case FILE_PRIORITY_HIGH_TAG:
+        case FilePriorityMenuTagHigh:
             priority = TR_PRI_HIGH;
             break;
-        case FILE_PRIORITY_NORMAL_TAG:
+        case FilePriorityMenuTagNormal:
             priority = TR_PRI_NORMAL;
             break;
-        case FILE_PRIORITY_LOW_TAG:
+        case FilePriorityMenuTagLow:
             priority = TR_PRI_LOW;
             break;
         default:
@@ -610,14 +608,14 @@ typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
                                                   action:@selector(setCheck:)
                                            keyEquivalent:@""];
     item.target = self;
-    item.tag = FILE_CHECK_TAG;
+    item.tag = FileCheckMenuTagCheck;
     [menu addItem:item];
 
     item = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Uncheck Selected", "File Outline -> Menu")
                                       action:@selector(setCheck:)
                                keyEquivalent:@""];
     item.target = self;
-    item.tag = FILE_UNCHECK_TAG;
+    item.tag = FileCheckMenuTagUncheck;
     [menu addItem:item];
 
     //only check selected
@@ -639,7 +637,7 @@ typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
                                       action:@selector(setPriority:)
                                keyEquivalent:@""];
     item.target = self;
-    item.tag = FILE_PRIORITY_HIGH_TAG;
+    item.tag = FilePriorityMenuTagHigh;
     item.image = [NSImage imageNamed:@"PriorityHighTemplate"];
     [priorityMenu addItem:item];
 
@@ -647,7 +645,7 @@ typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
                                       action:@selector(setPriority:)
                                keyEquivalent:@""];
     item.target = self;
-    item.tag = FILE_PRIORITY_NORMAL_TAG;
+    item.tag = FilePriorityMenuTagNormal;
     item.image = [NSImage imageNamed:@"PriorityNormalTemplate"];
     [priorityMenu addItem:item];
 
@@ -655,7 +653,7 @@ typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
                                       action:@selector(setPriority:)
                                keyEquivalent:@""];
     item.target = self;
-    item.tag = FILE_PRIORITY_LOW_TAG;
+    item.tag = FilePriorityMenuTagLow;
     item.image = [NSImage imageNamed:@"PriorityLowTemplate"];
     [priorityMenu addItem:item];
 
@@ -694,7 +692,10 @@ typedef NS_ENUM(unsigned int, filePriorityMenuTag) { //
     using FindFileNode = void (^)(FileListNode*, NSArray<FileListNode*>*, NSIndexSet*, FileListNode*);
     __weak __block FindFileNode weakFindFileNode;
     FindFileNode findFileNode;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshadow"
     weakFindFileNode = findFileNode = ^(FileListNode* node, NSArray<FileListNode*>* list, NSIndexSet* indexes, FileListNode* currentParent) {
+#pragma clang diagnostic pop
         [list enumerateObjectsAtIndexes:indexes options:NSEnumerationConcurrent
                              usingBlock:^(FileListNode* checkNode, NSUInteger index, BOOL* stop) {
                                  if ([checkNode.indexes containsIndex:node.indexes.firstIndex])

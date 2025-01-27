@@ -1,4 +1,4 @@
-// This file Copyright © 2005-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -7,7 +7,7 @@
 #import "NSStringAdditions.h"
 
 // Development-only proxy when app is not signed for running Sparkle
-void SUUpdater_checkForUpdates(id self, SEL _cmd, ...)
+void SUUpdater_checkForUpdates(id /*self*/, SEL /*_cmd*/, ...)
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSAlert* alert = [[NSAlert alloc] init];

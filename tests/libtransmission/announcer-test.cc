@@ -5,16 +5,17 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
+#include <cstddef> // std::byte
+#include <optional>
 #include <string_view>
 
 #define LIBTRANSMISSION_ANNOUNCER_MODULE
 
-#include "transmission.h"
+#include <libtransmission/announcer-common.h>
+#include <libtransmission/net.h>
 
-#include "announcer-common.h"
-#include "net.h"
-
-#include "test-fixtures.h"
+#include "gtest/gtest.h"
 
 using AnnouncerTest = ::testing::Test;
 
@@ -44,7 +45,10 @@ TEST_F(AnnouncerTest, parseHttpAnnounceResponseNoPeers)
     EXPECT_EQ(3, response.seeders);
     EXPECT_EQ(0, response.leechers);
     EXPECT_EQ(2, response.downloads);
-    EXPECT_EQ(*tr_address::fromString("1.2.3.4"), response.external_ip);
+    auto addr = tr_address::from_string("1.2.3.4");
+    EXPECT_TRUE(addr.has_value());
+    assert(addr.has_value());
+    EXPECT_EQ(*addr, response.external_ip);
     EXPECT_EQ(0U, std::size(response.pex));
     EXPECT_EQ(0U, std::size(response.pex6));
     EXPECT_EQ(""sv, response.errmsg);
@@ -80,7 +84,7 @@ TEST_F(AnnouncerTest, parseHttpAnnounceResponsePexCompact)
 
     if (std::size(response.pex) == 1)
     {
-        EXPECT_EQ("[127.0.0.1]:64551"sv, response.pex[0].readable());
+        EXPECT_EQ("127.0.0.1:64551"sv, response.pex[0].display_name());
     }
 }
 
@@ -119,7 +123,7 @@ TEST_F(AnnouncerTest, parseHttpAnnounceResponsePexList)
 
     if (std::size(response.pex) == 1)
     {
-        EXPECT_EQ("[8.8.4.4]:53"sv, response.pex[0].readable());
+        EXPECT_EQ("8.8.4.4:53"sv, response.pex[0].display_name());
     }
 }
 
@@ -295,9 +299,9 @@ TEST_F(AnnouncerTest, parseHttpScrapeResponseMultiWithMissing)
     EXPECT_EQ(2, response.rows[0].leechers);
     EXPECT_EQ(3, response.rows[0].downloads);
 
-    EXPECT_EQ(0, response.rows[1].seeders);
-    EXPECT_EQ(0, response.rows[1].leechers);
-    EXPECT_EQ(0, response.rows[1].downloads);
+    EXPECT_EQ(std::nullopt, response.rows[1].seeders);
+    EXPECT_EQ(std::nullopt, response.rows[1].leechers);
+    EXPECT_EQ(std::nullopt, response.rows[1].downloads);
 
     EXPECT_EQ(7, response.rows[2].seeders);
     EXPECT_EQ(8, response.rows[2].leechers);

@@ -1,4 +1,4 @@
-// This file Copyright © 2009-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -8,12 +8,10 @@
 #include <array>
 
 #include <QObject>
-#include <QSet>
 #include <QString>
 #include <QVariant>
 
 #include <libtransmission/quark.h>
-#include <libtransmission/tr-macros.h>
 
 class QDateTime;
 
@@ -25,7 +23,6 @@ extern "C"
 class Prefs : public QObject
 {
     Q_OBJECT
-    TR_DISABLE_COPY_MOVE(Prefs)
 
 public:
     enum
@@ -62,10 +59,11 @@ public:
         FILTER_TEXT,
         SESSION_IS_REMOTE,
         SESSION_REMOTE_HOST,
+        SESSION_REMOTE_HTTPS,
+        SESSION_REMOTE_PASSWORD,
         SESSION_REMOTE_PORT,
         SESSION_REMOTE_AUTH,
         SESSION_REMOTE_USERNAME,
-        SESSION_REMOTE_PASSWORD,
         COMPLETE_SOUND_COMMAND,
         COMPLETE_SOUND_ENABLED,
         USER_HAS_GIVEN_INFORMED_CONSENT,
@@ -132,6 +130,10 @@ public:
     };
 
     explicit Prefs(QString config_dir);
+    Prefs(Prefs&&) = delete;
+    Prefs(Prefs const&) = delete;
+    Prefs& operator=(Prefs&&) = delete;
+    Prefs& operator=(Prefs const&) = delete;
     ~Prefs() override;
 
     [[nodiscard]] constexpr auto isCore(int key) const noexcept
@@ -197,13 +199,12 @@ private:
         int type;
     };
 
-    void initDefaults(tr_variant*) const;
+    [[nodiscard]] static tr_variant get_default_app_settings();
 
     void set(int key, char const* value) = delete;
 
     QString const config_dir_;
 
-    QSet<int> temporary_prefs_;
     std::array<QVariant, PREFS_COUNT> mutable values_;
 
     static std::array<PrefItem, PREFS_COUNT> const Items;

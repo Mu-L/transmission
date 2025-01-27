@@ -1,4 +1,4 @@
-// This file Copyright © 2011-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -18,7 +18,7 @@ typedef NSString* FilterSearchType NS_TYPED_EXTENSIBLE_ENUM;
 extern FilterSearchType const FilterSearchTypeName;
 extern FilterSearchType const FilterSearchTypeTracker;
 
-extern const NSInteger kGroupFilterAllTag;
+extern NSInteger const kGroupFilterAllTag;
 
 @interface FilterBarController : NSViewController
 
@@ -26,13 +26,14 @@ extern const NSInteger kGroupFilterAllTag;
 
 - (instancetype)init;
 
-- (void)setFilter:(id)sender;
+- (IBAction)setFilter:(id)sender;
 - (void)switchFilter:(BOOL)right;
-- (void)setSearchText:(id)sender;
-- (void)setSearchType:(id)sender;
-- (void)setGroupFilter:(id)sender;
+- (IBAction)setSearchText:(id)sender;
+- (IBAction)setSearchType:(id)sender;
+- (IBAction)setGroupFilter:(id)sender;
 - (void)reset:(BOOL)updateUI;
 - (void)focusSearchField;
+- (BOOL)isFocused;
 
 - (void)setCountAll:(NSUInteger)all
              active:(NSUInteger)active

@@ -1,4 +1,4 @@
-// This file Copyright © 2008-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -112,7 +112,7 @@
         lookupPathComponents = [lookupPathComponents arrayByAddingObject:oldName];
         BOOL const allSame = NSNotFound ==
             [lookupPathComponents indexOfObjectWithOptions:NSEnumerationConcurrent
-                                               passingTest:^BOOL(NSString* name, NSUInteger idx, BOOL* stop) {
+                                               passingTest:^BOOL(NSString* name, NSUInteger idx, BOOL* /*stop*/) {
                                                    return ![name isEqualToString:thesePathComponents[idx]];
                                                }];
 

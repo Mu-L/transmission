@@ -4,19 +4,21 @@
 // License text can be found in the licenses/ folder.
 
 #include <algorithm>
+#include <cstdint> // uint64_t
 #include <cstring>
+#include <string_view>
 #include <vector>
 
-#include "transmission.h"
-#include "error.h"
-#include "file.h"
+#include <libtransmission/crypto-utils.h>
+#include <libtransmission/error.h>
+#include <libtransmission/file.h>
+#include <libtransmission/tr-strbuf.h>
+#include <libtransmission/utils.h>
 
+#include "gtest/gtest.h"
 #include "test-fixtures.h"
 
-namespace libtransmission
-{
-
-namespace test
+namespace libtransmission::test
 {
 
 class CopyTest : public SandboxedTest
@@ -34,11 +36,10 @@ protected:
 
         auto const path2 = tr_pathbuf{ sandboxDir(), '/', filename2 };
 
-        tr_error* err = nullptr;
         /* Copy it. */
-        EXPECT_TRUE(tr_sys_path_copy(path1, path2, &err));
-        EXPECT_EQ(nullptr, err) << ' ' << *err;
-        tr_error_clear(&err);
+        auto error = tr_error{};
+        EXPECT_TRUE(tr_sys_path_copy(path1, path2, &error));
+        EXPECT_FALSE(error) << error;
 
         EXPECT_TRUE(filesAreIdentical(path1, path2));
 
@@ -73,7 +74,7 @@ private:
     {
         auto contents1 = std::vector<char>{};
         auto contents2 = std::vector<char>{};
-        return tr_loadFile(filename1, contents1) && tr_loadFile(filename2, contents2) && contents1 == contents2;
+        return tr_file_read(filename1, contents1) && tr_file_read(filename2, contents2) && contents1 == contents2;
     }
 };
 
@@ -86,6 +87,4 @@ TEST_F(CopyTest, copy)
     testImpl(filename1, filename2, random_file_length);
 }
 
-} // namespace test
-
-} // namespace libtransmission
+} // namespace libtransmission::test

@@ -1,4 +1,4 @@
-// This file Copyright © 2008-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -87,6 +87,7 @@ typedef NS_ENUM(NSUInteger, PopupPriority) {
 
 - (void)awakeFromNib
 {
+    [super awakeFromNib];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(updateCheckButtons:) name:@"TorrentFileCheckChange"
                                              object:self.torrent];
 
@@ -176,8 +177,6 @@ typedef NS_ENUM(NSUInteger, PopupPriority) {
 
 - (void)dealloc
 {
-    [NSNotificationCenter.defaultCenter removeObserver:self];
-
     [_fTimer invalidate];
 }
 
@@ -320,7 +319,7 @@ typedef NS_ENUM(NSUInteger, PopupPriority) {
         NSUInteger count = self.torrent.fileCount;
         if (count != 1)
         {
-            fileString = [NSString stringWithFormat:NSLocalizedString(@"%lu files", "Add torrent -> info"), count];
+            fileString = [NSString localizedStringWithFormat:NSLocalizedString(@"%lu files", "Add torrent -> info"), count];
         }
         else
         {

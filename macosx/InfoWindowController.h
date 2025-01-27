@@ -1,4 +1,4 @@
-// This file Copyright © 2006-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -15,7 +15,7 @@
 - (void)updateInfoStats;
 - (void)updateOptions;
 
-- (void)setTab:(id)sender;
+- (IBAction)setTab:(id)sender;
 
 - (void)setNextTab;
 - (void)setPreviousTab;

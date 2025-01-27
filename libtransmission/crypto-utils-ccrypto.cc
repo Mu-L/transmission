@@ -1,4 +1,4 @@
-// This file Copyright © 2021-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -11,19 +11,17 @@
 
 #include <fmt/core.h>
 
-#include "transmission.h"
+#include "libtransmission/transmission.h"
 
-#include "crypto-utils.h"
-#include "log.h"
-#include "tr-assert.h"
-#include "utils.h"
+#include "libtransmission/crypto-utils.h"
+#include "libtransmission/log.h"
+#include "libtransmission/tr-assert.h"
+#include "libtransmission/utils.h"
 
 #define TR_CRYPTO_X509_FALLBACK
 #include "crypto-utils-fallback.cc" // NOLINT(bugprone-suspicious-include)
 
-/***
-****
-***/
+// ---
 
 namespace
 {
@@ -63,7 +61,7 @@ char const* ccrypto_error_to_str(CCCryptorStatus error_code)
     return "Unknown error";
 }
 
-void log_ccrypto_error(CCCryptorStatus error_code, char const* file, int line)
+void log_ccrypto_error(CCCryptorStatus error_code, char const* file, long line)
 {
     if (tr_logLevelIsActive(TR_LOG_ERROR))
     {
@@ -79,7 +77,7 @@ void log_ccrypto_error(CCCryptorStatus error_code, char const* file, int line)
     }
 }
 
-bool check_ccrypto_result(CCCryptorStatus result, char const* file, int line)
+bool check_ccrypto_result(CCCryptorStatus result, char const* file, long line)
 {
     bool const ret = result == kCCSuccess;
 
@@ -95,100 +93,77 @@ bool check_ccrypto_result(CCCryptorStatus result, char const* file, int line)
 
 } // namespace
 
-/***
-****
-***/
+// --- sha1
 
-namespace
+tr_sha1::tr_sha1()
 {
-
-class Sha1Impl final : public tr_sha1
-{
-public:
-    Sha1Impl()
-    {
-        clear();
-    }
-
-    ~Sha1Impl() override = default;
-
-    void clear() override
-    {
-        CC_SHA1_Init(&handle_);
-    }
-
-    void add(void const* data, size_t data_length) override
-    {
-        if (data_length > 0U)
-        {
-            CC_SHA1_Update(&handle_, data, data_length);
-        }
-    }
-
-    [[nodiscard]] tr_sha1_digest_t finish() override
-    {
-        auto digest = tr_sha1_digest_t{};
-        CC_SHA1_Final(reinterpret_cast<unsigned char*>(std::data(digest)), &handle_);
-        clear();
-        return digest;
-    }
-
-private:
-    CC_SHA1_CTX handle_ = {};
-};
-
-class Sha256Impl final : public tr_sha256
-{
-public:
-    Sha256Impl()
-    {
-        clear();
-    }
-
-    ~Sha256Impl() override = default;
-
-    void clear() override
-    {
-        CC_SHA256_Init(&handle_);
-    }
-
-    void add(void const* data, size_t data_length) override
-    {
-        if (data_length > 0U)
-        {
-            CC_SHA256_Update(&handle_, data, data_length);
-        }
-    }
-
-    [[nodiscard]] tr_sha256_digest_t finish() override
-    {
-        auto digest = tr_sha256_digest_t{};
-        CC_SHA256_Final(reinterpret_cast<unsigned char*>(std::data(digest)), &handle_);
-        clear();
-        return digest;
-    }
-
-private:
-    CC_SHA256_CTX handle_;
-};
-
-} // namespace
-
-std::unique_ptr<tr_sha1> tr_sha1::create()
-{
-    return std::make_unique<Sha1Impl>();
+    clear();
 }
 
-std::unique_ptr<tr_sha256> tr_sha256::create()
+tr_sha1::~tr_sha1()
 {
-    return std::make_unique<Sha256Impl>();
 }
 
-/***
-****
-***/
+void tr_sha1::clear()
+{
+    CC_SHA1_Init(&handle_);
+}
 
-bool tr_rand_buffer(void* buffer, size_t length)
+void tr_sha1::add(void const* data, size_t data_length)
+{
+    if (data_length == 0U)
+    {
+        return;
+    }
+
+    CC_SHA1_Update(&handle_, data, data_length);
+}
+
+tr_sha1_digest_t tr_sha1::finish()
+{
+    auto digest = tr_sha1_digest_t{};
+    CC_SHA1_Final(reinterpret_cast<unsigned char*>(std::data(digest)), &handle_);
+    clear();
+    return digest;
+}
+
+// --- sha256
+
+tr_sha256::tr_sha256()
+{
+    clear();
+}
+
+tr_sha256::~tr_sha256()
+{
+}
+
+void tr_sha256::clear()
+{
+    CC_SHA256_Init(&handle_);
+}
+
+void tr_sha256::add(void const* data, size_t data_length)
+{
+    if (data_length == 0U)
+    {
+        return;
+    }
+
+    CC_SHA256_Update(&handle_, data, data_length);
+}
+
+tr_sha256_digest_t tr_sha256::finish()
+{
+    auto digest = tr_sha256_digest_t{};
+    CC_SHA256_Final(reinterpret_cast<unsigned char*>(std::data(digest)), &handle_);
+    clear();
+    return digest;
+}
+
+// ---
+
+bool tr_rand_buffer_crypto(void* buffer, size_t length)
 {
     if (length == 0)
     {

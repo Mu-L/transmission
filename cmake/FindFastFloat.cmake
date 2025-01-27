@@ -1,1 +1,5 @@
-set(FAST_FLOAT_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/third-party/fast_float/include)
+add_library(FastFloat::fast_float INTERFACE IMPORTED)
+
+target_include_directories(FastFloat::fast_float
+    INTERFACE
+        ${TR_THIRD_PARTY_SOURCE_DIR}/fast_float/include)

@@ -1,4 +1,4 @@
-// This file Copyright © 2009-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -9,7 +9,9 @@
 #include <QPixmap>
 #include <QTextDocument>
 
-#include "FaviconCache.h"
+#include <libtransmission/web-utils.h>
+#include <libtransmission/favicon-cache.h>
+
 #include "Formatter.h"
 #include "Torrent.h"
 #include "TrackerDelegate.h"
@@ -22,8 +24,7 @@
 
 namespace
 {
-
-auto constexpr Spacing = int{ 6 };
+auto constexpr Spacing = 6;
 
 auto constexpr Margin = QSize{ 10, 10 };
 
@@ -56,9 +57,9 @@ ItemLayout::ItemLayout(
     QPoint const& top_left,
     int width)
 {
-    QSize const icon_size = FaviconCache::getIconSize();
+    auto const icon_size = QSize{ FaviconCache<QPixmap>::Width, FaviconCache<QPixmap>::Height };
 
-    QRect base_rect(top_left, QSize(width, 0));
+    QRect base_rect{ top_left, QSize{ width, 0 } };
 
     icon_rect = QStyle::alignedRect(direction, Qt::AlignLeft | Qt::AlignTop, icon_size, base_rect);
     Utils::narrowRect(base_rect, icon_size.width() + Spacing, 0, direction);
@@ -89,7 +90,11 @@ ItemLayout::ItemLayout(
 
 QSize TrackerDelegate::sizeHint(QStyleOptionViewItem const& option, TrackerInfo const& info) const
 {
-    ItemLayout const layout(getText(info), true, option.direction, QPoint(0, 0), option.rect.width() - Margin.width() * 2);
+    ItemLayout const layout{ getText(info),
+                             true,
+                             option.direction,
+                             QPoint{ 0, 0 },
+                             option.rect.width() - (Margin.width() * 2) };
     return layout.size() + Margin * 2;
 }
 
@@ -156,17 +161,15 @@ void TrackerDelegate::setShowMore(bool b)
 
 namespace
 {
-
-QString timeToStringRounded(int seconds)
+QString timeToRoundedString(int seconds)
 {
     if (seconds > 60)
     {
         seconds -= seconds % 60;
     }
 
-    return Formatter::get().timeToString(seconds);
+    return Formatter::time_to_string(seconds);
 }
-
 } // namespace
 
 QString TrackerDelegate::getText(TrackerInfo const& inf) const
@@ -182,18 +185,22 @@ QString TrackerDelegate::getText(TrackerInfo const& inf) const
     auto const now = time(nullptr);
     auto const time_until = [&now](auto t)
     {
-        return timeToStringRounded(static_cast<int>(t - now));
+        return timeToRoundedString(static_cast<int>(t - now));
     };
     auto const time_since = [&now](auto t)
     {
-        return timeToStringRounded(static_cast<int>(now - t));
+        return timeToRoundedString(static_cast<int>(now - t));
     };
 
     // hostname
     str += inf.st.is_backup ? QStringLiteral("<i>") : QStringLiteral("<b>");
-    auto const url = QUrl(inf.st.announce);
-    str += QStringLiteral("%1:%2").arg(url.host()).arg(url.port(80));
-
+    auto const announce_url = inf.st.announce.toStdString();
+    if (auto const parsed = tr_urlParse(announce_url); parsed)
+    {
+        str += QStringLiteral("%1:%2")
+                   .arg(QString::fromUtf8(std::data(parsed->host), std::size(parsed->host)))
+                   .arg(parsed->port);
+    }
     str += inf.st.is_backup ? QStringLiteral("</i>") : QStringLiteral("</b>");
 
     // announce & scrape info
@@ -254,6 +261,9 @@ QString TrackerDelegate::getText(TrackerInfo const& inf) const
             //: %1 is duration
             str += tr("Asking for more peers now… <small>%1</small>").arg(time_since(inf.st.last_announce_start_time));
             break;
+
+        default:
+            break;
         }
 
         if (!show_more_)
@@ -302,9 +312,6 @@ QString TrackerDelegate::getText(TrackerInfo const& inf) const
 
         switch (inf.st.scrape_state)
         {
-        case TR_TRACKER_INACTIVE:
-            break;
-
         case TR_TRACKER_WAITING:
             str += QStringLiteral("<br/>\n");
             //: %1 is duration
@@ -320,6 +327,9 @@ QString TrackerDelegate::getText(TrackerInfo const& inf) const
             str += QStringLiteral("<br/>\n");
             //: %1 is duration
             str += tr("Asking for peer counts now… <small>%1</small>").arg(time_since(inf.st.last_scrape_start_time));
+            break;
+
+        default: // TR_TRACKER_INACTIVE
             break;
         }
     }

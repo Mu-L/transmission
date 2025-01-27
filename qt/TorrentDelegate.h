@@ -1,4 +1,4 @@
-// This file Copyright © 2009-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -9,8 +9,6 @@
 
 #include <QStyledItemDelegate>
 
-#include <libtransmission/tr-macros.h>
-
 class QStyle;
 class QStyleOptionProgressBar;
 
@@ -19,10 +17,13 @@ class Torrent;
 class TorrentDelegate : public QStyledItemDelegate
 {
     Q_OBJECT
-    TR_DISABLE_COPY_MOVE(TorrentDelegate)
 
 public:
     explicit TorrentDelegate(QObject* parent = nullptr);
+    TorrentDelegate& operator=(TorrentDelegate&&) = delete;
+    TorrentDelegate& operator=(TorrentDelegate const&) = delete;
+    TorrentDelegate(TorrentDelegate&&) = delete;
+    TorrentDelegate(TorrentDelegate const&) = delete;
 
     // QAbstractItemDelegate
     QSize sizeHint(QStyleOptionViewItem const& option, QModelIndex const& index) const override;

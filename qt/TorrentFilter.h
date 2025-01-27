@@ -1,4 +1,4 @@
-// This file Copyright © 2009-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -9,8 +9,6 @@
 
 #include <QSortFilterProxyModel>
 #include <QTimer>
-
-#include <libtransmission/tr-macros.h>
 
 #include "Filters.h"
 
@@ -23,7 +21,6 @@ class Torrent;
 class TorrentFilter : public QSortFilterProxyModel
 {
     Q_OBJECT
-    TR_DISABLE_COPY_MOVE(TorrentFilter)
 
 public:
     enum TextMode
@@ -34,6 +31,11 @@ public:
     };
 
     explicit TorrentFilter(Prefs const& prefs);
+    TorrentFilter(TorrentFilter&&) = delete;
+    TorrentFilter(TorrentFilter const&) = delete;
+    TorrentFilter& operator=(TorrentFilter&&) = delete;
+    TorrentFilter& operator=(TorrentFilter const&) = delete;
+
     [[nodiscard]] std::array<int, FilterMode::NUM_MODES> countTorrentsPerMode() const;
 
 protected:

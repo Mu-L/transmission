@@ -1,4 +1,4 @@
-// This file Copyright © 2008-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -12,7 +12,7 @@
 @property(nonatomic) NSURLSession* fSession;
 @property(nonatomic) NSUInteger fCurrentSize;
 @property(nonatomic) long long fExpectedSize;
-@property(nonatomic) blocklistDownloadState fState;
+@property(nonatomic) BlocklistDownloadState fState;
 
 @end
 
@@ -43,13 +43,13 @@ BlocklistDownloader* fBLDownloader = nil;
     {
         switch (self.fState)
         {
-        case BLOCKLIST_DL_START:
+        case BlocklistDownloadStateStart:
             [_viewController setStatusStarting];
             break;
-        case BLOCKLIST_DL_DOWNLOADING:
+        case BlocklistDownloadStateDownloading:
             [_viewController setStatusProgressForCurrentSize:self.fCurrentSize expectedSize:self.fExpectedSize];
             break;
-        case BLOCKLIST_DL_PROCESSING:
+        case BlocklistDownloadStateProcessing:
             [_viewController setStatusProcessing];
             break;
         }
@@ -74,7 +74,7 @@ BlocklistDownloader* fBLDownloader = nil;
     totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite
 {
     dispatch_async(dispatch_get_main_queue(), ^{
-        self.fState = BLOCKLIST_DL_DOWNLOADING;
+        self.fState = BlocklistDownloadStateDownloading;
 
         self.fCurrentSize = totalBytesWritten;
         self.fExpectedSize = totalBytesExpectedToWrite;
@@ -94,6 +94,7 @@ BlocklistDownloader* fBLDownloader = nil;
         [NSUserDefaults.standardUserDefaults setObject:[NSDate date] forKey:@"BlocklistNewLastUpdate"];
         [BlocklistScheduler.scheduler updateSchedule];
 
+        [self.fSession finishTasksAndInvalidate];
         fBLDownloader = nil;
     });
 }
@@ -102,7 +103,7 @@ BlocklistDownloader* fBLDownloader = nil;
                  downloadTask:(NSURLSessionDownloadTask*)downloadTask
     didFinishDownloadingToURL:(NSURL*)location
 {
-    self.fState = BLOCKLIST_DL_PROCESSING;
+    self.fState = BlocklistDownloadStateProcessing;
 
     dispatch_async(dispatch_get_main_queue(), ^{
         [self.viewController setStatusProcessing];
@@ -153,6 +154,7 @@ BlocklistDownloader* fBLDownloader = nil;
 
         [NSNotificationCenter.defaultCenter postNotificationName:@"BlocklistUpdated" object:nil];
 
+        [self.fSession finishTasksAndInvalidate];
         fBLDownloader = nil;
     });
 }
@@ -161,7 +163,7 @@ BlocklistDownloader* fBLDownloader = nil;
 
 - (void)startDownload
 {
-    self.fState = BLOCKLIST_DL_START;
+    self.fState = BlocklistDownloadStateStart;
 
     self.fSession = [NSURLSession sessionWithConfiguration:NSURLSessionConfiguration.ephemeralSessionConfiguration delegate:self
                                              delegateQueue:nil];
@@ -173,9 +175,13 @@ BlocklistDownloader* fBLDownloader = nil;
     {
         urlString = @"";
     }
-    else if (![urlString isEqualToString:@""] && [urlString rangeOfString:@"://"].location == NSNotFound)
+    else
     {
-        urlString = [@"https://" stringByAppendingString:urlString];
+        urlString = [urlString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        if (![urlString isEqualToString:@""] && [urlString rangeOfString:@"://"].location == NSNotFound)
+        {
+            urlString = [@"https://" stringByAppendingString:urlString];
+        }
     }
 
     NSURLSessionDownloadTask* task = [self.fSession downloadTaskWithURL:[NSURL URLWithString:urlString]];
@@ -208,6 +214,29 @@ BlocklistDownloader* fBLDownloader = nil;
 
 - (BOOL)untarFrom:(NSURL*)file to:(NSURL*)destination
 {
+    // We need to check validity of archive before listing or unpacking.
+    NSTask* tarListCheck = [[NSTask alloc] init];
+
+    tarListCheck.launchPath = @"/usr/bin/tar";
+    tarListCheck.arguments = @[ @"--list", @"--file", file.path ];
+    tarListCheck.standardOutput = nil;
+    tarListCheck.standardError = nil;
+
+    @try
+    {
+        [tarListCheck launch];
+        [tarListCheck waitUntilExit];
+
+        if (tarListCheck.terminationStatus != 0)
+        {
+            return NO;
+        }
+    }
+    @catch (NSException* exception)
+    {
+        return NO;
+    }
+
     NSTask* tarList = [[NSTask alloc] init];
 
     tarList.launchPath = @"/usr/bin/tar";
@@ -310,7 +339,7 @@ BlocklistDownloader* fBLDownloader = nil;
     zipinfo.launchPath = @"/usr/bin/zipinfo";
     zipinfo.arguments = @[
         @"-1", /* just the filename */
-        file /* source zip file */
+        file.path /* source zip file */
     ];
     NSPipe* pipe = [[NSPipe alloc] init];
     zipinfo.standardOutput = pipe;

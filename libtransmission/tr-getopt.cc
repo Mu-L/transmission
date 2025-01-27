@@ -1,26 +1,27 @@
-// This file Copyright © 2008-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib> /* exit() */
 #include <cstring>
+#include <string>
 #include <string_view>
 
-#include <fmt/format.h>
+#include <fmt/core.h>
 
-#include "transmission.h"
-
-#include "tr-getopt.h"
-#include "tr-macros.h"
-#include "utils.h"
+#include "libtransmission/tr-getopt.h"
+#include "libtransmission/utils.h"
 
 using namespace std::literals;
 
 int tr_optind = 1;
 
-static std::string_view getArgName(tr_option const* opt)
+namespace
+{
+[[nodiscard]] constexpr std::string_view getArgName(tr_option const* opt)
 {
     if (!opt->has_arg)
     {
@@ -35,7 +36,7 @@ static std::string_view getArgName(tr_option const* opt)
     return "<args>"sv;
 }
 
-static size_t get_next_line_len(std::string_view description, size_t maxlen)
+[[nodiscard]] constexpr size_t get_next_line_len(std::string_view description, size_t maxlen)
 {
     auto len = std::size(description);
     if (len > maxlen)
@@ -47,14 +48,14 @@ static size_t get_next_line_len(std::string_view description, size_t maxlen)
     return len;
 }
 
-static void getopts_usage_line(tr_option const* const opt, size_t long_width, size_t short_width, size_t arg_width)
+void getopts_usage_line(tr_option const* const opt, size_t long_width, size_t short_width, size_t arg_width)
 {
     auto const long_name = std::string_view{ opt->longName != nullptr ? opt->longName : "" };
     auto const short_name = std::string_view{ opt->shortName != nullptr ? opt->shortName : "" };
     auto const arg = getArgName(opt);
 
     fmt::print(
-        FMT_STRING(" {:s}{:<{}s} {:s}{:<{}s} {:<{}s}"),
+        " {:s}{:<{}s} {:s}{:<{}s} {:<{}s} ",
         std::empty(short_name) ? " "sv : "-"sv,
         short_name,
         short_width,
@@ -64,25 +65,25 @@ static void getopts_usage_line(tr_option const* const opt, size_t long_width, si
         arg,
         arg_width);
 
-    auto const d_indent = short_width + long_width + arg_width + 6U;
+    auto const d_indent = short_width + long_width + arg_width + 7U;
     auto const d_width = 80U - d_indent;
 
     auto description = std::string_view{ opt->description };
     auto len = get_next_line_len(description, d_width);
-    fmt::print(FMT_STRING("{:s}\n"), description.substr(0, len));
+    fmt::print("{:s}\n", description.substr(0, len));
     description.remove_prefix(len);
-    description = tr_strvStrip(description);
+    description = tr_strv_strip(description);
 
     auto const indent = std::string(d_indent, ' ');
     while ((len = get_next_line_len(description, d_width)) != 0)
     {
-        fmt::print(FMT_STRING("{:s}{:s}\n"), indent, description.substr(0, len));
+        fmt::print("{:s}{:s}\n", indent, description.substr(0, len));
         description.remove_prefix(len);
-        description = tr_strvStrip(description);
+        description = tr_strv_strip(description);
     }
 }
 
-static void maxWidth(struct tr_option const* o, size_t& long_width, size_t& short_width, size_t& arg_width)
+void maxWidth(struct tr_option const* o, size_t& long_width, size_t& short_width, size_t& arg_width)
 {
     if (o->longName != nullptr)
     {
@@ -100,36 +101,7 @@ static void maxWidth(struct tr_option const* o, size_t& long_width, size_t& shor
     }
 }
 
-void tr_getopt_usage(char const* app_name, char const* description, struct tr_option const* opts)
-{
-    auto long_width = size_t{ 0 };
-    auto short_width = size_t{ 0 };
-    auto arg_width = size_t{ 0 };
-
-    for (tr_option const* o = opts; o->val != 0; ++o)
-    {
-        maxWidth(o, long_width, short_width, arg_width);
-    }
-
-    auto const help = tr_option{ -1, "help", "Display this help page and exit", "h", false, nullptr };
-    maxWidth(&help, long_width, short_width, arg_width);
-
-    if (description == nullptr)
-    {
-        description = "Usage: %s [options]";
-    }
-
-    printf(description, app_name);
-    printf("\n\nOptions:\n");
-    getopts_usage_line(&help, long_width, short_width, arg_width);
-
-    for (tr_option const* o = opts; o->val != 0; ++o)
-    {
-        getopts_usage_line(o, long_width, short_width, arg_width);
-    }
-}
-
-static tr_option const* findOption(tr_option const* opts, char const* str, char const** setme_arg)
+tr_option const* findOption(tr_option const* opts, char const* str, char const** setme_arg)
 {
     size_t matchlen = 0;
     char const* arg = nullptr;
@@ -178,6 +150,37 @@ static tr_option const* findOption(tr_option const* opts, char const* str, char 
     }
 
     return match;
+}
+
+} // namespace
+
+void tr_getopt_usage(char const* app_name, char const* description, struct tr_option const* opts)
+{
+    auto long_width = size_t{ 0 };
+    auto short_width = size_t{ 0 };
+    auto arg_width = size_t{ 0 };
+
+    for (tr_option const* o = opts; o->val != 0; ++o)
+    {
+        maxWidth(o, long_width, short_width, arg_width);
+    }
+
+    auto const help = tr_option{ -1, "help", "Display this help page and exit", "h", false, nullptr };
+    maxWidth(&help, long_width, short_width, arg_width);
+
+    if (description == nullptr)
+    {
+        description = "Usage: %s [options]";
+    }
+
+    printf(description, app_name);
+    printf("\n\nOptions:\n");
+    getopts_usage_line(&help, long_width, short_width, arg_width);
+
+    for (tr_option const* o = opts; o->val != 0; ++o)
+    {
+        getopts_usage_line(o, long_width, short_width, arg_width);
+    }
 }
 
 int tr_getopt(char const* usage, int argc, char const* const* argv, tr_option const* opts, char const** setme_optarg)
