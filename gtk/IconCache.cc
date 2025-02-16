@@ -5,17 +5,17 @@
  *
  */
 
-#include <algorithm>
+#include "IconCache.h"
+
+#include "GtkCompat.h"
+
+#include <giomm/contenttype.h>
+
+#include <functional> // for std::less<>
 #include <map>
 #include <string>
 #include <string_view>
-#include <utility>
-
-#include <glibmm.h>
-#include <giomm.h>
-
-#include "IconCache.h"
-#include "Utils.h"
+#include <utility> // for std::move()
 
 using namespace std::literals;
 

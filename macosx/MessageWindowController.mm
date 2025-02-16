@@ -1,4 +1,4 @@
-// This file Copyright © 2006-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -16,12 +16,12 @@ typedef NS_ENUM(NSUInteger, LevelButtonLevel) {
     LevelButtonLevelWarn = 1,
     LevelButtonLevelInfo = 2,
     LevelButtonLevelDebug = 3,
-    LevelButtonLevelTrace = 4,
+    // we do not support LevelButtonLevelTrace, as it would overwhelm everything (#4233)
 };
 
 static NSTimeInterval const kUpdateSeconds = 0.75;
 
-@interface MessageWindowController ()
+@interface MessageWindowController ()<NSWindowRestoration>
 
 @property(nonatomic) IBOutlet NSTableView* fMessageTable;
 
@@ -50,6 +50,7 @@ static NSTimeInterval const kUpdateSeconds = 0.75;
 
 - (void)awakeFromNib
 {
+    [super awakeFromNib];
     NSWindow* window = self.window;
     window.frameAutosaveName = @"MessageWindowFrame";
     [window setFrameUsingName:@"MessageWindowFrame"];
@@ -71,12 +72,10 @@ static NSTimeInterval const kUpdateSeconds = 0.75;
     [self.fLevelButton itemAtIndex:LevelButtonLevelWarn].title = NSLocalizedString(@"Warning", "Message window -> level string");
     [self.fLevelButton itemAtIndex:LevelButtonLevelInfo].title = NSLocalizedString(@"Info", "Message window -> level string");
     [self.fLevelButton itemAtIndex:LevelButtonLevelDebug].title = NSLocalizedString(@"Debug", "Message window -> level string");
-    [self.fLevelButton itemAtIndex:LevelButtonLevelTrace].title = NSLocalizedString(@"Trace", "Message window -> level string");
     [self.fLevelButton itemAtIndex:LevelButtonLevelError].image = [self.class iconForLevel:TR_LOG_ERROR];
     [self.fLevelButton itemAtIndex:LevelButtonLevelWarn].image = [self.class iconForLevel:TR_LOG_WARN];
     [self.fLevelButton itemAtIndex:LevelButtonLevelInfo].image = [self.class iconForLevel:TR_LOG_INFO];
     [self.fLevelButton itemAtIndex:LevelButtonLevelDebug].image = [self.class iconForLevel:TR_LOG_DEBUG];
-    [self.fLevelButton itemAtIndex:LevelButtonLevelTrace].image = [self.class iconForLevel:TR_LOG_TRACE];
 
     CGFloat const levelButtonOldWidth = NSWidth(self.fLevelButton.frame);
     [self.fLevelButton sizeToFit];
@@ -127,10 +126,8 @@ static NSTimeInterval const kUpdateSeconds = 0.75;
         [self.fLevelButton selectItemAtIndex:LevelButtonLevelInfo];
         break;
     case TR_LOG_DEBUG:
-        [self.fLevelButton selectItemAtIndex:LevelButtonLevelDebug];
-        break;
     case TR_LOG_TRACE:
-        [self.fLevelButton selectItemAtIndex:LevelButtonLevelTrace];
+        [self.fLevelButton selectItemAtIndex:LevelButtonLevelDebug];
         break;
     default: //safety
         [NSUserDefaults.standardUserDefaults setInteger:TR_LOG_ERROR forKey:@"MessageLevel"];
@@ -145,7 +142,6 @@ static NSTimeInterval const kUpdateSeconds = 0.75;
 
 - (void)dealloc
 {
-    [NSNotificationCenter.defaultCenter removeObserver:self];
     [_fTimer invalidate];
 }
 
@@ -254,9 +250,10 @@ static NSTimeInterval const kUpdateSeconds = 0.75;
         auto const file_string = std::string{ currentMessage->file };
         NSString* file = [(@(file_string.c_str())).lastPathComponent stringByAppendingFormat:@":%ld", currentMessage->line];
 
+        auto const secs_since_1970 = std::chrono::system_clock::to_time_t(currentMessage->when);
         NSDictionary* message = @{
             @"Message" : @(currentMessage->message.c_str()),
-            @"Date" : [NSDate dateWithTimeIntervalSince1970:currentMessage->when],
+            @"Date" : [NSDate dateWithTimeIntervalSince1970:secs_since_1970],
             @"Index" : @(currentIndex++), //more accurate when sorting by date
             @"Level" : @(currentMessage->level),
             @"Name" : name,
@@ -327,7 +324,6 @@ static NSTimeInterval const kUpdateSeconds = 0.75;
     }
 }
 
-#warning don't cut off end
 - (CGFloat)tableView:(NSTableView*)tableView heightOfRow:(NSInteger)row
 {
     NSString* message = self.fDisplayedMessages[row][@"Message"];
@@ -400,9 +396,6 @@ static NSTimeInterval const kUpdateSeconds = 0.75;
         break;
     case LevelButtonLevelDebug:
         level = TR_LOG_DEBUG;
-        break;
-    case LevelButtonLevelTrace:
-        level = TR_LOG_TRACE;
         break;
     default:
         NSAssert1(NO, @"Unknown message log level: %ld", [self.fLevelButton indexOfSelectedItem]);
@@ -516,7 +509,7 @@ static NSTimeInterval const kUpdateSeconds = 0.75;
     NSString* filterString = self.fFilterField.stringValue;
 
     NSIndexSet* indexes = [self.fMessages
-        indexesOfObjectsWithOptions:NSEnumerationConcurrent passingTest:^BOOL(NSDictionary* message, NSUInteger idx, BOOL* stop) {
+        indexesOfObjectsWithOptions:NSEnumerationConcurrent passingTest:^BOOL(NSDictionary* message, NSUInteger /*idx*/, BOOL* /*stop*/) {
             return [message[@"Level"] integerValue] <= level && [self shouldIncludeMessageForFilter:filterString message:message];
         }];
 

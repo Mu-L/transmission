@@ -1,10 +1,15 @@
-/* @license This file Copyright (C) 2020-2022 Mnemosyne LLC.
+/* @license This file Copyright © Mnemosyne LLC.
    It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
    or any future license endorsed by Mnemosyne LLC.
    License text can be found in the licenses/ folder. */
 
 import { Formatter } from './formatter.js';
-import { makeUUID, setChecked, setEnabled, setTextContent } from './utils.js';
+import {
+  addCheckedClass,
+  makeUUID,
+  setEnabled,
+  setTextContent,
+} from './utils.js';
 
 export class FileRow extends EventTarget {
   isDone() {
@@ -28,7 +33,8 @@ export class FileRow extends EventTarget {
     const pct = 100 * (size ? have / size : 1);
     const fmt = Formatter;
     const c = `${fmt.size(have)} of ${fmt.size(size)} (${fmt.percentString(
-      pct
+      pct,
+      1,
     )}%)`;
     setTextContent(this.elements.progress, c);
   }
@@ -48,11 +54,11 @@ export class FileRow extends EventTarget {
       have += file.bytesCompleted;
       size += file.length;
       wanted |= file.wanted;
-      switch (file.priority) {
-        case -1:
+      switch (file.priority.toString()) {
+        case '-1':
           low = true;
           break;
-        case 1:
+        case '1':
           high = true;
           break;
         default:
@@ -61,9 +67,9 @@ export class FileRow extends EventTarget {
       }
     }
 
-    setChecked(this.elements.priority_low_button, low);
-    setChecked(this.elements.priority_normal_button, normal);
-    setChecked(this.elements.priority_high_button, high);
+    addCheckedClass(this.elements.priority_low_button, low);
+    addCheckedClass(this.elements.priority_normal_button, normal);
+    addCheckedClass(this.elements.priority_high_button, high);
 
     if (this.fields.have !== have || this.fields.size !== size) {
       this.fields.have = have;
@@ -91,12 +97,9 @@ export class FileRow extends EventTarget {
     this.dispatchEvent(e);
   }
 
-  createRow(torrent, depth, name, even) {
+  createRow(torrent, depth, name) {
     const root = document.createElement('li');
-    root.classList.add(
-      'inspector-torrent-file-list-entry',
-      even ? 'even' : 'odd'
-    );
+    root.classList.add('inspector-torrent-file-list-entry');
 
     this.elements.root = root;
 
@@ -107,7 +110,7 @@ export class FileRow extends EventTarget {
     e.title = 'Download file';
     e.id = check_id;
     e.addEventListener('change', (event_) =>
-      this.fireWantedChanged(event_.target.checked)
+      this.fireWantedChanged(event_.target.checked),
     );
     root.checkbox = e;
     root.append(e);
@@ -132,7 +135,7 @@ export class FileRow extends EventTarget {
 
     e = document.createElement('input');
     e.type = 'radio';
-    e.value = -1;
+    e.value = '-1';
     e.className = 'low';
     e.title = 'Low Priority';
     e.addEventListener('click', priority_click_listener);
@@ -141,7 +144,7 @@ export class FileRow extends EventTarget {
 
     e = document.createElement('input');
     e.type = 'radio';
-    e.value = 0;
+    e.value = '0';
     e.className = 'normal';
     e.title = 'Normal Priority';
     e.addEventListener('click', priority_click_listener);
@@ -150,7 +153,7 @@ export class FileRow extends EventTarget {
 
     e = document.createElement('input');
     e.type = 'radio';
-    e.value = 1;
+    e.value = '1';
     e.title = 'High Priority';
     e.className = 'high';
     e.addEventListener('click', priority_click_listener);
@@ -170,7 +173,7 @@ export class FileRow extends EventTarget {
     return this.elements.root;
   }
 
-  constructor(torrent, depth, name, indices, even) {
+  constructor(torrent, depth, name, indices) {
     super();
 
     this.fields = {
@@ -190,6 +193,6 @@ export class FileRow extends EventTarget {
       progress: null,
       root: null,
     };
-    this.createRow(torrent, depth, name, even);
+    this.createRow(torrent, depth, name);
   }
 }

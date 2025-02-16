@@ -1,4 +1,4 @@
-// This file Copyright © 2011-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -16,8 +16,6 @@
 
 @implementation URLSheetWindowController
 
-NSString* urlString = nil;
-
 - (instancetype)init
 {
     self = [self initWithWindowNibName:@"URLSheetWindow"];
@@ -26,16 +24,8 @@ NSString* urlString = nil;
 
 - (void)awakeFromNib
 {
+    [super awakeFromNib];
     self.fLabelField.stringValue = NSLocalizedString(@"Internet address of torrent file:", "URL sheet label");
-
-    if (self.urlString)
-    {
-        self.fTextField.stringValue = self.urlString;
-        [self.fTextField selectText:self];
-
-        [self updateOpenButtonForURL:self.urlString];
-    }
-
     self.fOpenButton.title = NSLocalizedString(@"Open", "URL sheet button");
     self.fCancelButton.title = NSLocalizedString(@"Cancel", "URL sheet button");
 

@@ -1,4 +1,4 @@
-// This file Copyright © 2010-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -14,6 +14,6 @@
 - (void)saveViewSize;
 - (void)clearView;
 
-- (void)addRemoveTracker:(id)sender;
+- (IBAction)addRemoveTracker:(id)sender;
 
 @end

@@ -1,6 +1,8 @@
-// This file Copyright © 2007-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
+
+#import "CocoaCompatibility.h"
 
 #import "GroupsPrefsController.h"
 #import "GroupsController.h"
@@ -37,9 +39,15 @@ typedef NS_ENUM(NSInteger, SegmentTag) {
 
 - (void)awakeFromNib
 {
+    [super awakeFromNib];
     [self.fTableView registerForDraggedTypes:@[ kGroupTableViewDataType ]];
 
     [self.fSelectedColorView addObserver:self forKeyPath:@"color" options:0 context:NULL];
+
+    if (@available(macOS 13.0, *))
+    {
+        self.fSelectedColorView.colorWellStyle = NSColorWellStyleMinimal;
+    }
 
     [self updateSelectedGroup];
 }
@@ -93,7 +101,8 @@ typedef NS_ENUM(NSInteger, SegmentTag) {
 - (BOOL)tableView:(NSTableView*)tableView writeRowsWithIndexes:(NSIndexSet*)rowIndexes toPasteboard:(NSPasteboard*)pboard
 {
     [pboard declareTypes:@[ kGroupTableViewDataType ] owner:self];
-    [pboard setData:[NSKeyedArchiver archivedDataWithRootObject:rowIndexes] forType:kGroupTableViewDataType];
+    [pboard setData:[NSKeyedArchiver archivedDataWithRootObject:rowIndexes requiringSecureCoding:YES error:nil]
+            forType:kGroupTableViewDataType];
     return YES;
 }
 

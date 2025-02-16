@@ -1,4 +1,4 @@
-// This file Copyright © 2015-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -25,10 +25,10 @@ QVariant DBusInteropHelper::addMetainfo(QString const& metainfo) const
         QStringLiteral("/com/transmissionbt/Transmission"),
         QStringLiteral("com.transmissionbt.Transmission"),
         QStringLiteral("AddMetainfo"));
-    request.setArguments(QVariantList() << metainfo);
+    request.setArguments(QVariantList{} << metainfo);
 
     QDBusReply<bool> const response = QDBusConnection::sessionBus().call(request);
-    return response.isValid() ? QVariant(response.value()) : QVariant();
+    return response.isValid() ? QVariant{ response.value() } : QVariant{};
 }
 
 void DBusInteropHelper::registerObject(QObject* parent)
@@ -39,14 +39,13 @@ void DBusInteropHelper::registerObject(QObject* parent)
         return;
     }
 
-    auto const service_name = QStringLiteral("com.transmissionbt.Transmission");
-    if (!bus.registerService(service_name))
+    if (auto const service_name = QStringLiteral("com.transmissionbt.Transmission"); !bus.registerService(service_name))
     {
         qWarning() << "couldn't register" << qPrintable(service_name);
     }
 
-    auto const object_path = QStringLiteral("/com/transmissionbt/Transmission");
-    if (!bus.registerObject(object_path, new InteropObject(parent), QDBusConnection::ExportAllSlots))
+    if (auto const object_path = QStringLiteral("/com/transmissionbt/Transmission");
+        !bus.registerObject(object_path, new InteropObject{ parent }, QDBusConnection::ExportAllSlots))
     {
         qWarning() << "couldn't register" << qPrintable(object_path);
     }

@@ -3,14 +3,14 @@
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
 
-#include "transmission.h"
-#include "quark.h"
-
-#include "gtest/gtest.h"
-
-#include <cstring>
+#include <cassert>
+#include <cstddef> // size_t
 #include <string>
 #include <string_view>
+
+#include <libtransmission/quark.h>
+
+#include "gtest/gtest.h"
 
 class QuarkTest : public ::testing::Test
 {
@@ -18,7 +18,7 @@ protected:
     template<typename T>
     std::string quarkGetString(T i)
     {
-        return std::string{ tr_quark_get_string_view(tr_quark(i)) };
+        return std::string{ tr_quark_get_string_view(tr_quark{ i }) };
     }
 };
 
@@ -28,7 +28,8 @@ TEST_F(QuarkTest, allPredefinedKeysCanBeLookedUp)
     {
         auto const str = quarkGetString(i);
         auto const q = tr_quark_lookup(str);
-        EXPECT_TRUE(q);
+        ASSERT_TRUE(q.has_value());
+        assert(q.has_value());
         EXPECT_EQ(i, *q);
     }
 }

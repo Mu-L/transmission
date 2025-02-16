@@ -1,4 +1,4 @@
-// This file Copyright © 2011-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -10,7 +10,7 @@
 
 - (instancetype)init;
 
-- (void)openURLEndSheet:(id)sender;
-- (void)openURLCancelEndSheet:(id)sender;
+- (IBAction)openURLEndSheet:(id)sender;
+- (IBAction)openURLCancelEndSheet:(id)sender;
 
 @end

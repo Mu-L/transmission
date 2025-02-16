@@ -1,22 +1,30 @@
-// This file Copyright © 2008-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
 
-#include <map>
-#include <utility>
-#include <vector>
-
-#include <giomm.h>
-#include <glibmm/i18n.h>
-
-#include <fmt/core.h>
-
 #include "Notify.h"
+
+#include "GtkCompat.h"
 #include "Prefs.h"
 #include "PrefsDialog.h"
 #include "Session.h"
 #include "Utils.h"
+
+#include <giomm/asyncresult.h>
+#include <giomm/dbusproxy.h>
+#include <glibmm/error.h>
+#include <glibmm/i18n.h>
+#include <glibmm/miscutils.h>
+#include <glibmm/spawn.h>
+#include <glibmm/ustring.h>
+#include <glibmm/variant.h>
+
+#include <fmt/core.h>
+
+#include <map>
+#include <utility>
+#include <vector>
 
 using namespace std::literals;
 
@@ -27,9 +35,9 @@ using UInt32VariantType = Glib::Variant<guint32>;
 namespace
 {
 
-auto const NotificationsDbusName = Glib::ustring("org.freedesktop.Notifications"s);
-auto const NotificationsDbusCoreObject = Glib::ustring("/org/freedesktop/Notifications"s);
-auto const NotificationsDbusCoreInterface = Glib::ustring("org.freedesktop.Notifications"s);
+auto const NotificationsDbusName = "org.freedesktop.Notifications"sv; // TODO(C++20): Use ""s
+auto const NotificationsDbusCoreObject = "/org/freedesktop/Notifications"sv; // TODO(C++20): Use ""s
+auto const NotificationsDbusCoreInterface = "org.freedesktop.Notifications"sv; // TODO(C++20): Use ""s
 
 struct TrNotification
 {
@@ -136,14 +144,11 @@ void dbus_proxy_ready_callback(Glib::RefPtr<Gio::AsyncResult>& res)
     }
     catch (Glib::Error const& e)
     {
-        g_warning(
-            "%s",
-            fmt::format(
-                _("Couldn't create proxy for '{bus}': {error} ({error_code})"),
-                fmt::arg("bus", NotificationsDbusName),
-                fmt::arg("error", TR_GLIB_EXCEPTION_WHAT(e)),
-                fmt::arg("error_code", e.code()))
-                .c_str());
+        gtr_warning(fmt::format(
+            _("Couldn't create proxy for '{bus}': {error} ({error_code})"),
+            fmt::arg("bus", NotificationsDbusName),
+            fmt::arg("error", TR_GLIB_EXCEPTION_WHAT(e)),
+            fmt::arg("error_code", e.code())));
         return;
     }
 
@@ -157,9 +162,9 @@ void gtr_notify_init()
 {
     Gio::DBus::Proxy::create_for_bus(
         TR_GIO_DBUS_BUS_TYPE(SESSION),
-        NotificationsDbusName,
-        NotificationsDbusCoreObject,
-        NotificationsDbusCoreInterface,
+        std::string(NotificationsDbusName),
+        std::string(NotificationsDbusCoreObject),
+        std::string(NotificationsDbusCoreInterface),
         &dbus_proxy_ready_callback,
         {},
         TR_GIO_DBUS_PROXY_FLAGS(DO_NOT_LOAD_PROPERTIES));

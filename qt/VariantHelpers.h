@@ -1,4 +1,4 @@
-// This file Copyright © 2020-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -24,10 +24,7 @@ struct Peer;
 struct TorrentFile;
 struct TrackerStat;
 
-namespace trqt
-{
-
-namespace variant_helpers
+namespace trqt::variant_helpers
 {
 
 template<typename T, typename std::enable_if_t<std::is_same_v<T, bool>>* = nullptr>
@@ -104,17 +101,17 @@ template<
     typename T = typename C::value_type,
     typename std::enable_if_t<
         std::is_same_v<C, QStringList> || std::is_same_v<C, QList<T>> || std::is_same_v<C, std::vector<T>>>* = nullptr>
-auto getValue(tr_variant const* variant)
+auto getValue(tr_variant const* var)
 {
     std::optional<C> ret;
 
-    if (tr_variantIsList(variant))
+    if (var != nullptr && var->holds_alternative<tr_variant::Vector>())
     {
         auto list = C{};
 
-        for (size_t i = 0, n = tr_variantListSize(variant); i < n; ++i)
+        for (size_t i = 0, n = tr_variantListSize(var); i < n; ++i)
         {
-            tr_variant* const child = tr_variantListChild(const_cast<tr_variant*>(variant), i);
+            tr_variant* const child = tr_variantListChild(const_cast<tr_variant*>(var), i);
             auto const value = getValue<T>(child);
             if (value)
             {
@@ -223,6 +220,4 @@ void dictAdd(tr_variant* dict, tr_quark key, T const& value)
     variantInit(tr_variantDictAdd(dict, key), value);
 }
 
-} // namespace variant_helpers
-
-} // namespace trqt
+} // namespace trqt::variant_helpers

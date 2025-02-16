@@ -3,8 +3,14 @@ name: "CodeQL"
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+      - '.github/**'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+      - '.github/**'
   schedule:
     - cron: '29 14 * * 1'
 
@@ -24,7 +30,7 @@ jobs:
 
     steps:
     - name: Checkout repository and submodules
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         submodules: recursive
 
@@ -64,16 +70,23 @@ jobs:
     - name: Build Dependencies
       if: ${{ matrix.language == 'cpp' }}
       run: |
-        ninja -C _build -t targets |
-            grep -E 'third-party/.*-build:' |
+        ninja -C _build -t targets all |
+            grep -E 'third-party/.*-build:|third-party/.*/all:' |
             cut -d: -f1 |
             xargs -L1 ninja -C _build
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
+      if: ${{ matrix.language == 'javascript' }}
+      uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
-        config-file: ./.github/codeql/codeql-config.yml
+        config-file: ./.github/codeql/codeql-config-js.yml
+
+    - name: Initialize CodeQL
+      if: ${{ matrix.language == 'cpp' }}
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
 
     - name: Build Project
       if: ${{ matrix.language == 'cpp' }}
@@ -81,6 +94,6 @@ jobs:
         ninja -C _build
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@v3
       with:
         category: "/language:${{matrix.language}}"

@@ -1,4 +1,4 @@
-// This file Copyright © 2009-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -8,6 +8,7 @@
 
 #include "FileTreeDelegate.h"
 #include "FileTreeModel.h"
+#include "StyleHelper.h"
 
 QSize FileTreeDelegate::sizeHint(QStyleOptionViewItem const& item, QModelIndex const& index) const
 {
@@ -17,7 +18,7 @@ QSize FileTreeDelegate::sizeHint(QStyleOptionViewItem const& item, QModelIndex c
     {
     case FileTreeModel::COL_PROGRESS:
     case FileTreeModel::COL_WANTED:
-        size = QSize(20, 1);
+        size = QSize{ 20, 1 };
         break;
 
     default:
@@ -49,16 +50,16 @@ void FileTreeDelegate::paint(QPainter* painter, QStyleOptionViewItem const& opti
         p.state = option.state | QStyle::State_Horizontal | QStyle::State_Small;
         p.direction = QApplication::layoutDirection();
         p.rect = option.rect;
-        p.rect.setSize(QSize(option.rect.width() - 4, option.rect.height() - 8));
+        p.rect.setSize(QSize{ option.rect.width() - 4, option.rect.height() - 8 });
         p.rect.moveCenter(option.rect.center());
-        p.fontMetrics = QApplication::fontMetrics();
+        p.fontMetrics = QFontMetrics{ QApplication::font() };
         p.minimum = 0;
         p.maximum = 100;
         p.textAlignment = Qt::AlignCenter;
         p.textVisible = true;
         p.progress = static_cast<int>(100.0 * index.data().toDouble());
         p.text = QStringLiteral("%1%").arg(p.progress);
-        style->drawControl(QStyle::CE_ProgressBar, &p, painter);
+        StyleHelper::drawProgressBar(*style, *painter, p);
     }
     else if (column == FileTreeModel::COL_WANTED)
     {

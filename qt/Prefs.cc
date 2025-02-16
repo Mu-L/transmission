@@ -1,4 +1,4 @@
-// This file Copyright © 2009-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -19,7 +19,6 @@
 #endif
 
 #include <libtransmission/transmission.h>
-#include <libtransmission/utils.h>
 #include <libtransmission/variant.h>
 
 #include "CustomVariantType.h"
@@ -30,9 +29,7 @@
 using ::trqt::variant_helpers::dictAdd;
 using ::trqt::variant_helpers::getValue;
 
-/***
-****
-***/
+// ---
 
 namespace
 {
@@ -61,101 +58,102 @@ void ensureSoundCommandIsAList(tr_variant* dict)
 
 std::array<Prefs::PrefItem, Prefs::PREFS_COUNT> const Prefs::Items{
     /* gui settings */
-    PrefItem{ OPTIONS_PROMPT, TR_KEY_show_options_window, QVariant::Bool },
-    { OPEN_DIALOG_FOLDER, TR_KEY_open_dialog_dir, QVariant::String },
-    { INHIBIT_HIBERNATION, TR_KEY_inhibit_desktop_hibernation, QVariant::Bool },
-    { DIR_WATCH, TR_KEY_watch_dir, QVariant::String },
-    { DIR_WATCH_ENABLED, TR_KEY_watch_dir_enabled, QVariant::Bool },
-    { SHOW_TRAY_ICON, TR_KEY_show_notification_area_icon, QVariant::Bool },
-    { START_MINIMIZED, TR_KEY_start_minimized, QVariant::Bool },
-    { SHOW_NOTIFICATION_ON_ADD, TR_KEY_torrent_added_notification_enabled, QVariant::Bool },
-    { SHOW_NOTIFICATION_ON_COMPLETE, TR_KEY_torrent_complete_notification_enabled, QVariant::Bool },
-    { ASKQUIT, TR_KEY_prompt_before_exit, QVariant::Bool },
+    PrefItem{ OPTIONS_PROMPT, TR_KEY_show_options_window, QMetaType::Bool },
+    { OPEN_DIALOG_FOLDER, TR_KEY_open_dialog_dir, QMetaType::QString },
+    { INHIBIT_HIBERNATION, TR_KEY_inhibit_desktop_hibernation, QMetaType::Bool },
+    { DIR_WATCH, TR_KEY_watch_dir, QMetaType::QString },
+    { DIR_WATCH_ENABLED, TR_KEY_watch_dir_enabled, QMetaType::Bool },
+    { SHOW_TRAY_ICON, TR_KEY_show_notification_area_icon, QMetaType::Bool },
+    { START_MINIMIZED, TR_KEY_start_minimized, QMetaType::Bool },
+    { SHOW_NOTIFICATION_ON_ADD, TR_KEY_torrent_added_notification_enabled, QMetaType::Bool },
+    { SHOW_NOTIFICATION_ON_COMPLETE, TR_KEY_torrent_complete_notification_enabled, QMetaType::Bool },
+    { ASKQUIT, TR_KEY_prompt_before_exit, QMetaType::Bool },
     { SORT_MODE, TR_KEY_sort_mode, CustomVariantType::SortModeType },
-    { SORT_REVERSED, TR_KEY_sort_reversed, QVariant::Bool },
-    { COMPACT_VIEW, TR_KEY_compact_view, QVariant::Bool },
-    { FILTERBAR, TR_KEY_show_filterbar, QVariant::Bool },
-    { STATUSBAR, TR_KEY_show_statusbar, QVariant::Bool },
-    { STATUSBAR_STATS, TR_KEY_statusbar_stats, QVariant::String },
-    { SHOW_TRACKER_SCRAPES, TR_KEY_show_extra_peer_details, QVariant::Bool },
-    { SHOW_BACKUP_TRACKERS, TR_KEY_show_backup_trackers, QVariant::Bool },
-    { TOOLBAR, TR_KEY_show_toolbar, QVariant::Bool },
-    { BLOCKLIST_DATE, TR_KEY_blocklist_date, QVariant::DateTime },
-    { BLOCKLIST_UPDATES_ENABLED, TR_KEY_blocklist_updates_enabled, QVariant::Bool },
-    { MAIN_WINDOW_LAYOUT_ORDER, TR_KEY_main_window_layout_order, QVariant::String },
-    { MAIN_WINDOW_HEIGHT, TR_KEY_main_window_height, QVariant::Int },
-    { MAIN_WINDOW_WIDTH, TR_KEY_main_window_width, QVariant::Int },
-    { MAIN_WINDOW_X, TR_KEY_main_window_x, QVariant::Int },
-    { MAIN_WINDOW_Y, TR_KEY_main_window_y, QVariant::Int },
+    { SORT_REVERSED, TR_KEY_sort_reversed, QMetaType::Bool },
+    { COMPACT_VIEW, TR_KEY_compact_view, QMetaType::Bool },
+    { FILTERBAR, TR_KEY_show_filterbar, QMetaType::Bool },
+    { STATUSBAR, TR_KEY_show_statusbar, QMetaType::Bool },
+    { STATUSBAR_STATS, TR_KEY_statusbar_stats, QMetaType::QString },
+    { SHOW_TRACKER_SCRAPES, TR_KEY_show_tracker_scrapes, QMetaType::Bool },
+    { SHOW_BACKUP_TRACKERS, TR_KEY_show_backup_trackers, QMetaType::Bool },
+    { TOOLBAR, TR_KEY_show_toolbar, QMetaType::Bool },
+    { BLOCKLIST_DATE, TR_KEY_blocklist_date, QMetaType::QDateTime },
+    { BLOCKLIST_UPDATES_ENABLED, TR_KEY_blocklist_updates_enabled, QMetaType::Bool },
+    { MAIN_WINDOW_LAYOUT_ORDER, TR_KEY_main_window_layout_order, QMetaType::QString },
+    { MAIN_WINDOW_HEIGHT, TR_KEY_main_window_height, QMetaType::Int },
+    { MAIN_WINDOW_WIDTH, TR_KEY_main_window_width, QMetaType::Int },
+    { MAIN_WINDOW_X, TR_KEY_main_window_x, QMetaType::Int },
+    { MAIN_WINDOW_Y, TR_KEY_main_window_y, QMetaType::Int },
     { FILTER_MODE, TR_KEY_filter_mode, CustomVariantType::FilterModeType },
-    { FILTER_TRACKERS, TR_KEY_filter_trackers, QVariant::String },
-    { FILTER_TEXT, TR_KEY_filter_text, QVariant::String },
-    { SESSION_IS_REMOTE, TR_KEY_remote_session_enabled, QVariant::Bool },
-    { SESSION_REMOTE_HOST, TR_KEY_remote_session_host, QVariant::String },
-    { SESSION_REMOTE_PORT, TR_KEY_remote_session_port, QVariant::Int },
-    { SESSION_REMOTE_AUTH, TR_KEY_remote_session_requres_authentication, QVariant::Bool },
-    { SESSION_REMOTE_USERNAME, TR_KEY_remote_session_username, QVariant::String },
-    { SESSION_REMOTE_PASSWORD, TR_KEY_remote_session_password, QVariant::String },
-    { COMPLETE_SOUND_COMMAND, TR_KEY_torrent_complete_sound_command, QVariant::StringList },
-    { COMPLETE_SOUND_ENABLED, TR_KEY_torrent_complete_sound_enabled, QVariant::Bool },
-    { USER_HAS_GIVEN_INFORMED_CONSENT, TR_KEY_user_has_given_informed_consent, QVariant::Bool },
-    { READ_CLIPBOARD, TR_KEY_read_clipboard, QVariant::Bool },
+    { FILTER_TRACKERS, TR_KEY_filter_trackers, QMetaType::QString },
+    { FILTER_TEXT, TR_KEY_filter_text, QMetaType::QString },
+    { SESSION_IS_REMOTE, TR_KEY_remote_session_enabled, QMetaType::Bool },
+    { SESSION_REMOTE_HOST, TR_KEY_remote_session_host, QMetaType::QString },
+    { SESSION_REMOTE_HTTPS, TR_KEY_remote_session_https, QMetaType::Bool },
+    { SESSION_REMOTE_PASSWORD, TR_KEY_remote_session_password, QMetaType::QString },
+    { SESSION_REMOTE_PORT, TR_KEY_remote_session_port, QMetaType::Int },
+    { SESSION_REMOTE_AUTH, TR_KEY_remote_session_requres_authentication, QMetaType::Bool },
+    { SESSION_REMOTE_USERNAME, TR_KEY_remote_session_username, QMetaType::QString },
+    { COMPLETE_SOUND_COMMAND, TR_KEY_torrent_complete_sound_command, QMetaType::QStringList },
+    { COMPLETE_SOUND_ENABLED, TR_KEY_torrent_complete_sound_enabled, QMetaType::Bool },
+    { USER_HAS_GIVEN_INFORMED_CONSENT, TR_KEY_user_has_given_informed_consent, QMetaType::Bool },
+    { READ_CLIPBOARD, TR_KEY_read_clipboard, QMetaType::Bool },
 
     /* libtransmission settings */
-    { ALT_SPEED_LIMIT_UP, TR_KEY_alt_speed_up, QVariant::Int },
-    { ALT_SPEED_LIMIT_DOWN, TR_KEY_alt_speed_down, QVariant::Int },
-    { ALT_SPEED_LIMIT_ENABLED, TR_KEY_alt_speed_enabled, QVariant::Bool },
-    { ALT_SPEED_LIMIT_TIME_BEGIN, TR_KEY_alt_speed_time_begin, QVariant::Int },
-    { ALT_SPEED_LIMIT_TIME_END, TR_KEY_alt_speed_time_end, QVariant::Int },
-    { ALT_SPEED_LIMIT_TIME_ENABLED, TR_KEY_alt_speed_time_enabled, QVariant::Bool },
-    { ALT_SPEED_LIMIT_TIME_DAY, TR_KEY_alt_speed_time_day, QVariant::Int },
-    { BLOCKLIST_ENABLED, TR_KEY_blocklist_enabled, QVariant::Bool },
-    { BLOCKLIST_URL, TR_KEY_blocklist_url, QVariant::String },
-    { DEFAULT_TRACKERS, TR_KEY_default_trackers, QVariant::String },
-    { DSPEED, TR_KEY_speed_limit_down, QVariant::Int },
-    { DSPEED_ENABLED, TR_KEY_speed_limit_down_enabled, QVariant::Bool },
-    { DOWNLOAD_DIR, TR_KEY_download_dir, QVariant::String },
-    { DOWNLOAD_QUEUE_ENABLED, TR_KEY_download_queue_enabled, QVariant::Bool },
-    { DOWNLOAD_QUEUE_SIZE, TR_KEY_download_queue_size, QVariant::Int },
-    { ENCRYPTION, TR_KEY_encryption, QVariant::Int },
-    { IDLE_LIMIT, TR_KEY_idle_seeding_limit, QVariant::Int },
-    { IDLE_LIMIT_ENABLED, TR_KEY_idle_seeding_limit_enabled, QVariant::Bool },
-    { INCOMPLETE_DIR, TR_KEY_incomplete_dir, QVariant::String },
-    { INCOMPLETE_DIR_ENABLED, TR_KEY_incomplete_dir_enabled, QVariant::Bool },
-    { MSGLEVEL, TR_KEY_message_level, QVariant::Int },
-    { PEER_LIMIT_GLOBAL, TR_KEY_peer_limit_global, QVariant::Int },
-    { PEER_LIMIT_TORRENT, TR_KEY_peer_limit_per_torrent, QVariant::Int },
-    { PEER_PORT, TR_KEY_peer_port, QVariant::Int },
-    { PEER_PORT_RANDOM_ON_START, TR_KEY_peer_port_random_on_start, QVariant::Bool },
-    { PEER_PORT_RANDOM_LOW, TR_KEY_peer_port_random_low, QVariant::Int },
-    { PEER_PORT_RANDOM_HIGH, TR_KEY_peer_port_random_high, QVariant::Int },
-    { QUEUE_STALLED_MINUTES, TR_KEY_queue_stalled_minutes, QVariant::Int },
-    { SCRIPT_TORRENT_DONE_ENABLED, TR_KEY_script_torrent_done_enabled, QVariant::Bool },
-    { SCRIPT_TORRENT_DONE_FILENAME, TR_KEY_script_torrent_done_filename, QVariant::String },
-    { SCRIPT_TORRENT_DONE_SEEDING_ENABLED, TR_KEY_script_torrent_done_seeding_enabled, QVariant::Bool },
-    { SCRIPT_TORRENT_DONE_SEEDING_FILENAME, TR_KEY_script_torrent_done_seeding_filename, QVariant::String },
-    { SOCKET_TOS, TR_KEY_peer_socket_tos, QVariant::String },
-    { START, TR_KEY_start_added_torrents, QVariant::Bool },
-    { TRASH_ORIGINAL, TR_KEY_trash_original_torrent_files, QVariant::Bool },
-    { PEX_ENABLED, TR_KEY_pex_enabled, QVariant::Bool },
-    { DHT_ENABLED, TR_KEY_dht_enabled, QVariant::Bool },
-    { UTP_ENABLED, TR_KEY_utp_enabled, QVariant::Bool },
-    { LPD_ENABLED, TR_KEY_lpd_enabled, QVariant::Bool },
-    { PORT_FORWARDING, TR_KEY_port_forwarding_enabled, QVariant::Bool },
-    { PREALLOCATION, TR_KEY_preallocation, QVariant::Int },
-    { RATIO, TR_KEY_ratio_limit, QVariant::Double },
-    { RATIO_ENABLED, TR_KEY_ratio_limit_enabled, QVariant::Bool },
-    { RENAME_PARTIAL_FILES, TR_KEY_rename_partial_files, QVariant::Bool },
-    { RPC_AUTH_REQUIRED, TR_KEY_rpc_authentication_required, QVariant::Bool },
-    { RPC_ENABLED, TR_KEY_rpc_enabled, QVariant::Bool },
-    { RPC_PASSWORD, TR_KEY_rpc_password, QVariant::String },
-    { RPC_PORT, TR_KEY_rpc_port, QVariant::Int },
-    { RPC_USERNAME, TR_KEY_rpc_username, QVariant::String },
-    { RPC_WHITELIST_ENABLED, TR_KEY_rpc_whitelist_enabled, QVariant::Bool },
-    { RPC_WHITELIST, TR_KEY_rpc_whitelist, QVariant::String },
-    { USPEED_ENABLED, TR_KEY_speed_limit_up_enabled, QVariant::Bool },
-    { USPEED, TR_KEY_speed_limit_up, QVariant::Int },
-    { UPLOAD_SLOTS_PER_TORRENT, TR_KEY_upload_slots_per_torrent, QVariant::Int },
+    { ALT_SPEED_LIMIT_UP, TR_KEY_alt_speed_up, QMetaType::Int },
+    { ALT_SPEED_LIMIT_DOWN, TR_KEY_alt_speed_down, QMetaType::Int },
+    { ALT_SPEED_LIMIT_ENABLED, TR_KEY_alt_speed_enabled, QMetaType::Bool },
+    { ALT_SPEED_LIMIT_TIME_BEGIN, TR_KEY_alt_speed_time_begin, QMetaType::Int },
+    { ALT_SPEED_LIMIT_TIME_END, TR_KEY_alt_speed_time_end, QMetaType::Int },
+    { ALT_SPEED_LIMIT_TIME_ENABLED, TR_KEY_alt_speed_time_enabled, QMetaType::Bool },
+    { ALT_SPEED_LIMIT_TIME_DAY, TR_KEY_alt_speed_time_day, QMetaType::Int },
+    { BLOCKLIST_ENABLED, TR_KEY_blocklist_enabled, QMetaType::Bool },
+    { BLOCKLIST_URL, TR_KEY_blocklist_url, QMetaType::QString },
+    { DEFAULT_TRACKERS, TR_KEY_default_trackers, QMetaType::QString },
+    { DSPEED, TR_KEY_speed_limit_down, QMetaType::Int },
+    { DSPEED_ENABLED, TR_KEY_speed_limit_down_enabled, QMetaType::Bool },
+    { DOWNLOAD_DIR, TR_KEY_download_dir, QMetaType::QString },
+    { DOWNLOAD_QUEUE_ENABLED, TR_KEY_download_queue_enabled, QMetaType::Bool },
+    { DOWNLOAD_QUEUE_SIZE, TR_KEY_download_queue_size, QMetaType::Int },
+    { ENCRYPTION, TR_KEY_encryption, QMetaType::Int },
+    { IDLE_LIMIT, TR_KEY_idle_seeding_limit, QMetaType::Int },
+    { IDLE_LIMIT_ENABLED, TR_KEY_idle_seeding_limit_enabled, QMetaType::Bool },
+    { INCOMPLETE_DIR, TR_KEY_incomplete_dir, QMetaType::QString },
+    { INCOMPLETE_DIR_ENABLED, TR_KEY_incomplete_dir_enabled, QMetaType::Bool },
+    { MSGLEVEL, TR_KEY_message_level, QMetaType::Int },
+    { PEER_LIMIT_GLOBAL, TR_KEY_peer_limit_global, QMetaType::Int },
+    { PEER_LIMIT_TORRENT, TR_KEY_peer_limit_per_torrent, QMetaType::Int },
+    { PEER_PORT, TR_KEY_peer_port, QMetaType::Int },
+    { PEER_PORT_RANDOM_ON_START, TR_KEY_peer_port_random_on_start, QMetaType::Bool },
+    { PEER_PORT_RANDOM_LOW, TR_KEY_peer_port_random_low, QMetaType::Int },
+    { PEER_PORT_RANDOM_HIGH, TR_KEY_peer_port_random_high, QMetaType::Int },
+    { QUEUE_STALLED_MINUTES, TR_KEY_queue_stalled_minutes, QMetaType::Int },
+    { SCRIPT_TORRENT_DONE_ENABLED, TR_KEY_script_torrent_done_enabled, QMetaType::Bool },
+    { SCRIPT_TORRENT_DONE_FILENAME, TR_KEY_script_torrent_done_filename, QMetaType::QString },
+    { SCRIPT_TORRENT_DONE_SEEDING_ENABLED, TR_KEY_script_torrent_done_seeding_enabled, QMetaType::Bool },
+    { SCRIPT_TORRENT_DONE_SEEDING_FILENAME, TR_KEY_script_torrent_done_seeding_filename, QMetaType::QString },
+    { SOCKET_TOS, TR_KEY_peer_socket_tos, QMetaType::QString },
+    { START, TR_KEY_start_added_torrents, QMetaType::Bool },
+    { TRASH_ORIGINAL, TR_KEY_trash_original_torrent_files, QMetaType::Bool },
+    { PEX_ENABLED, TR_KEY_pex_enabled, QMetaType::Bool },
+    { DHT_ENABLED, TR_KEY_dht_enabled, QMetaType::Bool },
+    { UTP_ENABLED, TR_KEY_utp_enabled, QMetaType::Bool },
+    { LPD_ENABLED, TR_KEY_lpd_enabled, QMetaType::Bool },
+    { PORT_FORWARDING, TR_KEY_port_forwarding_enabled, QMetaType::Bool },
+    { PREALLOCATION, TR_KEY_preallocation, QMetaType::Int },
+    { RATIO, TR_KEY_ratio_limit, QMetaType::Double },
+    { RATIO_ENABLED, TR_KEY_ratio_limit_enabled, QMetaType::Bool },
+    { RENAME_PARTIAL_FILES, TR_KEY_rename_partial_files, QMetaType::Bool },
+    { RPC_AUTH_REQUIRED, TR_KEY_rpc_authentication_required, QMetaType::Bool },
+    { RPC_ENABLED, TR_KEY_rpc_enabled, QMetaType::Bool },
+    { RPC_PASSWORD, TR_KEY_rpc_password, QMetaType::QString },
+    { RPC_PORT, TR_KEY_rpc_port, QMetaType::Int },
+    { RPC_USERNAME, TR_KEY_rpc_username, QMetaType::QString },
+    { RPC_WHITELIST_ENABLED, TR_KEY_rpc_whitelist_enabled, QMetaType::Bool },
+    { RPC_WHITELIST, TR_KEY_rpc_whitelist, QMetaType::QString },
+    { USPEED_ENABLED, TR_KEY_speed_limit_up_enabled, QMetaType::Bool },
+    { USPEED, TR_KEY_speed_limit_up, QMetaType::Int },
+    { UPLOAD_SLOTS_PER_TORRENT, TR_KEY_upload_slots_per_torrent, QMetaType::Int },
 };
 
 namespace
@@ -189,20 +187,33 @@ bool isValidUtf8(QByteArray const& byteArray)
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 
-    auto decoder = QStringDecoder(QStringConverter::Utf8, QStringConverter::Flag::Stateless);
-    auto const text = QString(decoder.decode(byteArray));
+    auto decoder = QStringDecoder{ QStringConverter::Utf8, QStringConverter::Flag::Stateless };
+    auto const text = QString{ decoder.decode(byteArray) };
     return !decoder.hasError() && !text.contains(QChar::ReplacementCharacter);
 
 #else
 
     auto const* const codec = QTextCodec::codecForName("UTF-8");
     auto state = QTextCodec::ConverterState{};
-    auto const text = codec->toUnicode(byteArray.constData(), byteArray.size(), &state);
+    codec->toUnicode(byteArray.constData(), byteArray.size(), &state);
     return state.invalidChars == 0;
 
 #endif
 }
 
+[[nodiscard]] constexpr auto prefIsSavable(int pref)
+{
+    switch (pref)
+    {
+    // these are the prefs that don't get saved to settings.json
+    // when the application exits.
+    case Prefs::FILTER_TEXT:
+        return false;
+
+    default:
+        return true;
+    }
+}
 } // namespace
 
 /***
@@ -210,7 +221,7 @@ bool isValidUtf8(QByteArray const& byteArray)
 ***/
 
 Prefs::Prefs(QString config_dir)
-    : config_dir_(std::move(config_dir))
+    : config_dir_{ std::move(config_dir) }
 {
     static_assert(sizeof(Items) / sizeof(Items[0]) == PREFS_COUNT);
 
@@ -222,23 +233,17 @@ Prefs::Prefs(QString config_dir)
 
 #endif
 
-    // these are the prefs that don't get saved to settings.json
-    // when the application exits.
-    temporary_prefs_ << FILTER_TEXT;
-
-    tr_variant top;
-    tr_variantInitDict(&top, 0);
-    initDefaults(&top);
-    tr_sessionLoadSettings(&top, config_dir_.toUtf8().constData(), nullptr);
-    ensureSoundCommandIsAList(&top);
+    auto const app_defaults = get_default_app_settings();
+    auto settings = tr_sessionLoadSettings(&app_defaults, config_dir_.toUtf8().constData(), nullptr);
+    ensureSoundCommandIsAList(&settings);
 
     for (int i = 0; i < PREFS_COUNT; ++i)
     {
-        tr_variant const* b = tr_variantDictFind(&top, Items[i].key);
+        tr_variant const* b = tr_variantDictFind(&settings, Items[i].key);
 
         switch (Items[i].type)
         {
-        case QVariant::Int:
+        case QMetaType::Int:
             if (auto const value = getValue<int64_t>(b); value)
             {
                 values_[i].setValue(*value);
@@ -254,8 +259,8 @@ Prefs::Prefs(QString config_dir)
                 };
                 // NOLINTNEXTLINE(readability-qualified-auto)
                 auto const it = std::find_if(std::cbegin(SortModes), std::cend(SortModes), test);
-                auto const& pair = it == std::end(SortModes) ? SortModes.front() : *it;
-                values_[i] = QVariant::fromValue(SortMode(pair.first));
+                auto const& [mode, mode_str] = it == std::end(SortModes) ? SortModes.front() : *it;
+                values_[i] = QVariant::fromValue(SortMode{ mode });
             }
             break;
 
@@ -268,40 +273,40 @@ Prefs::Prefs(QString config_dir)
                 };
                 // NOLINTNEXTLINE(readability-qualified-auto)
                 auto const it = std::find_if(std::cbegin(FilterModes), std::cend(FilterModes), test);
-                auto const& pair = it == std::end(FilterModes) ? FilterModes.front() : *it;
-                values_[i] = QVariant::fromValue(FilterMode(pair.first));
+                auto const& [mode, mode_str] = it == std::end(FilterModes) ? FilterModes.front() : *it;
+                values_[i] = QVariant::fromValue(FilterMode{ mode });
             }
             break;
 
-        case QVariant::String:
+        case QMetaType::QString:
             if (auto const value = getValue<QString>(b); value)
             {
                 values_[i].setValue(*value);
             }
             break;
 
-        case QVariant::StringList:
+        case QMetaType::QStringList:
             if (auto const value = getValue<QStringList>(b); value)
             {
                 values_[i].setValue(*value);
             }
             break;
 
-        case QVariant::Bool:
+        case QMetaType::Bool:
             if (auto const value = getValue<bool>(b); value)
             {
                 values_[i].setValue(*value);
             }
             break;
 
-        case QVariant::Double:
+        case QMetaType::Double:
             if (auto const value = getValue<double>(b); value)
             {
                 values_[i].setValue(*value);
             }
             break;
 
-        case QVariant::DateTime:
+        case QMetaType::QDateTime:
             if (auto const value = getValue<time_t>(b); value)
             {
 #if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
@@ -317,8 +322,6 @@ Prefs::Prefs(QString config_dir)
             break;
         }
     }
-
-    tr_variantClear(&top);
 }
 
 Prefs::~Prefs()
@@ -329,7 +332,7 @@ Prefs::~Prefs()
 
     for (int i = 0; i < PREFS_COUNT; ++i)
     {
-        if (temporary_prefs_.contains(i))
+        if (!prefIsSavable(i))
         {
             continue;
         }
@@ -339,7 +342,7 @@ Prefs::~Prefs()
 
         switch (Items[i].type)
         {
-        case QVariant::Int:
+        case QMetaType::Int:
             dictAdd(&current_settings, key, val.toInt());
             break;
 
@@ -352,8 +355,8 @@ Prefs::~Prefs()
                 };
                 // NOLINTNEXTLINE(readability-qualified-auto)
                 auto const it = std::find_if(std::cbegin(SortModes), std::cend(SortModes), test);
-                auto const& pair = it == std::end(SortModes) ? SortModes.front() : *it;
-                dictAdd(&current_settings, key, pair.second);
+                auto const& [mode_val, mode_str] = it == std::end(SortModes) ? SortModes.front() : *it;
+                dictAdd(&current_settings, key, mode_str);
                 break;
             }
 
@@ -366,28 +369,28 @@ Prefs::~Prefs()
                 };
                 // NOLINTNEXTLINE(readability-qualified-auto)
                 auto const it = std::find_if(std::cbegin(FilterModes), std::cend(FilterModes), test);
-                auto const& pair = it == std::end(FilterModes) ? FilterModes.front() : *it;
-                dictAdd(&current_settings, key, pair.second);
+                auto const& [mode_val, mode_str] = it == std::end(FilterModes) ? FilterModes.front() : *it;
+                dictAdd(&current_settings, key, mode_str);
                 break;
             }
 
-        case QVariant::String:
+        case QMetaType::QString:
             dictAdd(&current_settings, key, val.toString());
             break;
 
-        case QVariant::StringList:
+        case QMetaType::QStringList:
             dictAdd(&current_settings, key, val.toStringList());
             break;
 
-        case QVariant::Bool:
+        case QMetaType::Bool:
             dictAdd(&current_settings, key, val.toBool());
             break;
 
-        case QVariant::Double:
+        case QMetaType::Double:
             dictAdd(&current_settings, key, val.toDouble());
             break;
 
-        case QVariant::DateTime:
+        case QMetaType::QDateTime:
 #if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
             dictAdd(&current_settings, key, int64_t{ val.toDateTime().toSecsSinceEpoch() });
 #else
@@ -402,27 +405,26 @@ Prefs::~Prefs()
     }
 
     // update settings.json with our settings
-    tr_variant file_settings;
-    QFile const file(QDir(config_dir_).absoluteFilePath(QStringLiteral("settings.json")));
-
-    if (!tr_variantFromFile(&file_settings, TR_VARIANT_PARSE_JSON, file.fileName().toStdString(), nullptr))
+    auto serde = tr_variant_serde::json();
+    auto const file = QFile{ QDir{ config_dir_ }.absoluteFilePath(QStringLiteral("settings.json")) };
+    auto const filename = file.fileName().toStdString();
+    auto settings = serde.parse_file(filename);
+    if (!settings)
     {
-        tr_variantInitDict(&file_settings, PREFS_COUNT);
+        auto empty_dict = tr_variant{};
+        tr_variantInitDict(&empty_dict, PREFS_COUNT);
+        settings = std::move(empty_dict);
     }
 
-    tr_variantMergeDicts(&file_settings, &current_settings);
-    tr_variantToFile(&file_settings, TR_VARIANT_FMT_JSON, file.fileName().toStdString());
-    tr_variantClear(&file_settings);
-
-    // cleanup
-    tr_variantClear(&current_settings);
+    tr_variantMergeDicts(&*settings, &current_settings);
+    serde.to_file(*settings, filename);
 }
 
 /**
  * This is where we initialize the preferences file with the default values.
  * If you add a new preferences key, you /must/ add a default value here.
  */
-void Prefs::initDefaults(tr_variant* d) const
+tr_variant Prefs::get_default_app_settings()
 {
     auto constexpr FilterMode = std::string_view{ "all" };
     auto constexpr SessionHost = std::string_view{ "localhost" };
@@ -434,45 +436,46 @@ void Prefs::initDefaults(tr_variant* d) const
 
     auto const download_dir = tr_getDefaultDownloadDir();
 
-    tr_variantDictReserve(d, 38);
-    dictAdd(d, TR_KEY_blocklist_updates_enabled, true);
-    dictAdd(d, TR_KEY_compact_view, false);
-    dictAdd(d, TR_KEY_inhibit_desktop_hibernation, false);
-    dictAdd(d, TR_KEY_prompt_before_exit, true);
-    dictAdd(d, TR_KEY_remote_session_enabled, false);
-    dictAdd(d, TR_KEY_remote_session_requres_authentication, false);
-    dictAdd(d, TR_KEY_show_backup_trackers, false);
-    dictAdd(d, TR_KEY_show_extra_peer_details, false);
-    dictAdd(d, TR_KEY_show_filterbar, true);
-    dictAdd(d, TR_KEY_show_notification_area_icon, false);
-    dictAdd(d, TR_KEY_start_minimized, false);
-    dictAdd(d, TR_KEY_show_options_window, true);
-    dictAdd(d, TR_KEY_show_statusbar, true);
-    dictAdd(d, TR_KEY_show_toolbar, true);
-    dictAdd(d, TR_KEY_show_tracker_scrapes, false);
-    dictAdd(d, TR_KEY_sort_reversed, false);
-    dictAdd(d, TR_KEY_torrent_added_notification_enabled, true);
-    dictAdd(d, TR_KEY_torrent_complete_notification_enabled, true);
-    dictAdd(d, TR_KEY_torrent_complete_sound_enabled, true);
-    dictAdd(d, TR_KEY_user_has_given_informed_consent, false);
-    dictAdd(d, TR_KEY_watch_dir_enabled, false);
-    dictAdd(d, TR_KEY_blocklist_date, 0);
-    dictAdd(d, TR_KEY_main_window_height, 500);
-    dictAdd(d, TR_KEY_main_window_width, 300);
-    dictAdd(d, TR_KEY_main_window_x, 50);
-    dictAdd(d, TR_KEY_main_window_y, 50);
-    dictAdd(d, TR_KEY_remote_session_port, TR_DEFAULT_RPC_PORT);
-    dictAdd(d, TR_KEY_download_dir, download_dir);
-    dictAdd(d, TR_KEY_filter_mode, FilterMode);
-    dictAdd(d, TR_KEY_main_window_layout_order, WindowLayout);
-    dictAdd(d, TR_KEY_open_dialog_dir, QDir::home().absolutePath());
-    dictAdd(d, TR_KEY_remote_session_host, SessionHost);
-    dictAdd(d, TR_KEY_remote_session_password, SessionPassword);
-    dictAdd(d, TR_KEY_remote_session_username, SessionUsername);
-    dictAdd(d, TR_KEY_sort_mode, SortMode);
-    dictAdd(d, TR_KEY_statusbar_stats, StatsMode);
-    dictAdd(d, TR_KEY_watch_dir, download_dir);
-    dictAdd(d, TR_KEY_read_clipboard, false);
+    auto settings = tr_variant::Map{};
+    settings.try_emplace(TR_KEY_blocklist_updates_enabled, true);
+    settings.try_emplace(TR_KEY_compact_view, false);
+    settings.try_emplace(TR_KEY_inhibit_desktop_hibernation, false);
+    settings.try_emplace(TR_KEY_prompt_before_exit, true);
+    settings.try_emplace(TR_KEY_remote_session_enabled, false);
+    settings.try_emplace(TR_KEY_remote_session_requres_authentication, false);
+    settings.try_emplace(TR_KEY_show_backup_trackers, false);
+    settings.try_emplace(TR_KEY_show_filterbar, true);
+    settings.try_emplace(TR_KEY_show_notification_area_icon, false);
+    settings.try_emplace(TR_KEY_start_minimized, false);
+    settings.try_emplace(TR_KEY_show_options_window, true);
+    settings.try_emplace(TR_KEY_show_statusbar, true);
+    settings.try_emplace(TR_KEY_show_toolbar, true);
+    settings.try_emplace(TR_KEY_show_tracker_scrapes, false);
+    settings.try_emplace(TR_KEY_sort_reversed, false);
+    settings.try_emplace(TR_KEY_torrent_added_notification_enabled, true);
+    settings.try_emplace(TR_KEY_torrent_complete_notification_enabled, true);
+    settings.try_emplace(TR_KEY_torrent_complete_sound_enabled, true);
+    settings.try_emplace(TR_KEY_user_has_given_informed_consent, false);
+    settings.try_emplace(TR_KEY_watch_dir_enabled, false);
+    settings.try_emplace(TR_KEY_blocklist_date, 0);
+    settings.try_emplace(TR_KEY_main_window_height, 500);
+    settings.try_emplace(TR_KEY_main_window_width, 300);
+    settings.try_emplace(TR_KEY_main_window_x, 50);
+    settings.try_emplace(TR_KEY_main_window_y, 50);
+    settings.try_emplace(TR_KEY_remote_session_port, TR_DEFAULT_RPC_PORT);
+    settings.try_emplace(TR_KEY_download_dir, download_dir);
+    settings.try_emplace(TR_KEY_filter_mode, FilterMode);
+    settings.try_emplace(TR_KEY_main_window_layout_order, WindowLayout);
+    settings.try_emplace(TR_KEY_open_dialog_dir, QDir::home().absolutePath().toStdString());
+    settings.try_emplace(TR_KEY_remote_session_https, false);
+    settings.try_emplace(TR_KEY_remote_session_host, SessionHost);
+    settings.try_emplace(TR_KEY_remote_session_password, SessionPassword);
+    settings.try_emplace(TR_KEY_remote_session_username, SessionUsername);
+    settings.try_emplace(TR_KEY_sort_mode, SortMode);
+    settings.try_emplace(TR_KEY_statusbar_stats, StatsMode);
+    settings.try_emplace(TR_KEY_watch_dir, download_dir);
+    settings.try_emplace(TR_KEY_read_clipboard, false);
+    return tr_variant{ std::move(settings) };
 }
 
 /***
@@ -481,13 +484,13 @@ void Prefs::initDefaults(tr_variant* d) const
 
 bool Prefs::getBool(int key) const
 {
-    assert(Items[key].type == QVariant::Bool);
+    assert(Items[key].type == QMetaType::Bool);
     return values_[key].toBool();
 }
 
 QString Prefs::getString(int key) const
 {
-    assert(Items[key].type == QVariant::String);
+    assert(Items[key].type == QMetaType::QString);
 
     if (auto const b = values_[key].toByteArray(); isValidUtf8(b.constData()))
     {
@@ -499,25 +502,23 @@ QString Prefs::getString(int key) const
 
 int Prefs::getInt(int key) const
 {
-    assert(Items[key].type == QVariant::Int);
+    assert(Items[key].type == QMetaType::Int);
     return values_[key].toInt();
 }
 
 double Prefs::getDouble(int key) const
 {
-    assert(Items[key].type == QVariant::Double);
+    assert(Items[key].type == QMetaType::Double);
     return values_[key].toDouble();
 }
 
 QDateTime Prefs::getDateTime(int key) const
 {
-    assert(Items[key].type == QVariant::DateTime);
+    assert(Items[key].type == QMetaType::QDateTime);
     return values_[key].toDateTime();
 }
 
-/***
-****
-***/
+// ---
 
 void Prefs::toggleBool(int key)
 {

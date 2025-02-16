@@ -3,7 +3,11 @@
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
 
+#include <array>
+#include <cstddef> // size_t
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -11,13 +15,10 @@
 #define unsetenv(key) SetEnvironmentVariableA(key, nullptr)
 #endif
 
-#include "transmission.h"
+#include <libtransmission/crypto-utils.h>
+#include <libtransmission/web-utils.h>
 
-#include "crypto-utils.h"
-#include "platform.h"
-#include "web-utils.h"
-
-#include "test-fixtures.h"
+#include "gtest/gtest.h"
 
 using namespace std::literals;
 
@@ -111,7 +112,7 @@ TEST_F(WebUtilsTest, urlParse)
     EXPECT_EQ("/some/other/path"sv, parsed->path);
     EXPECT_EQ(80, parsed->port);
 
-    // test a host with an IP address
+    // test a host with an IPv4 address
     url = "https://127.0.0.1:8080/some/path"sv;
     parsed = tr_urlParse(url);
     EXPECT_TRUE(parsed);
@@ -120,15 +121,42 @@ TEST_F(WebUtilsTest, urlParse)
     EXPECT_EQ("127.0.0.1"sv, parsed->host);
     EXPECT_EQ("/some/path"sv, parsed->path);
     EXPECT_EQ(8080, parsed->port);
+
+    // test a host with a bracketed IPv6 address and explicit port
+    url = "http://[2001:0db8:11a3:09d7:1f34:8a2e:07a0:765d]:8080/announce"sv;
+    parsed = tr_urlParse(url);
+    EXPECT_EQ("http"sv, parsed->scheme);
+    EXPECT_EQ("[2001:0db8:11a3:09d7:1f34:8a2e:07a0:765d]"sv, parsed->sitename);
+    EXPECT_EQ("[2001:0db8:11a3:09d7:1f34:8a2e:07a0:765d]"sv, parsed->host);
+    EXPECT_EQ("/announce"sv, parsed->path);
+    EXPECT_EQ(8080, parsed->port);
+
+    // test a host with a bracketed IPv6 address and implicit port
+    url = "http://[2001:0db8:11a3:09d7:1f34:8a2e:07a0:765d]/announce"sv;
+    parsed = tr_urlParse(url);
+    EXPECT_EQ("http"sv, parsed->scheme);
+    EXPECT_EQ("[2001:0db8:11a3:09d7:1f34:8a2e:07a0:765d]"sv, parsed->sitename);
+    EXPECT_EQ("[2001:0db8:11a3:09d7:1f34:8a2e:07a0:765d]"sv, parsed->host);
+    EXPECT_EQ("/announce"sv, parsed->path);
+    EXPECT_EQ(80, parsed->port);
+
+    // test a host with an unbracketed IPv6 address and implicit port
+    url = "http://2001:0db8:11a3:09d7:1f34:8a2e:07a0:765d/announce"sv;
+    parsed = tr_urlParse(url);
+    EXPECT_EQ("http"sv, parsed->scheme);
+    EXPECT_EQ("2001:0db8:11a3:09d7:1f34:8a2e:07a0:765d"sv, parsed->sitename);
+    EXPECT_EQ("2001:0db8:11a3:09d7:1f34:8a2e:07a0:765d"sv, parsed->host);
+    EXPECT_EQ("/announce"sv, parsed->path);
+    EXPECT_EQ(80, parsed->port);
 }
 
 TEST(WebUtilsTest, urlParseFuzz)
 {
     auto buf = std::vector<char>{};
 
-    for (size_t i = 0; i < 100000; ++i)
+    for (size_t i = 0; i < 100000U; ++i)
     {
-        buf.resize(tr_rand_int(1024));
+        buf.resize(tr_rand_int(1024U));
         tr_rand_buffer(std::data(buf), std::size(buf));
         (void)tr_urlParse({ std::data(buf), std::size(buf) });
     }

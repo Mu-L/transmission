@@ -1,4 +1,4 @@
-// This file Copyright © 2005-2022 Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // It may be used under the MIT (SPDX: MIT) license.
 // License text can be found in the licenses/ folder.
 
@@ -6,10 +6,12 @@
 #include <libtransmission/utils.h>
 
 #import "NSStringAdditions.h"
+#import "NSDataAdditions.h"
 
 @interface NSString (Private)
 
 + (NSString*)stringForSpeed:(CGFloat)speed kb:(NSString*)kb mb:(NSString*)mb gb:(NSString*)gb;
++ (NSString*)stringForSpeedCompact:(CGFloat)speed kb:(NSString*)kb mb:(NSString*)mb gb:(NSString*)gb;
 
 @end
 
@@ -25,12 +27,6 @@
     return [self stringByAppendingString:NSString.ellipsis];
 }
 
-#warning use localizedStringWithFormat: directly when 10.9-only and stringsdict translations are in place
-+ (NSString*)formattedUInteger:(NSUInteger)value
-{
-    return [NSString localizedStringWithFormat:@"%lu", value];
-}
-
 // Maximum supported localization is 9.22 EB, which is the maximum supported filesystem size by macOS, 8 EiB.
 // https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/APFS_Guide/VolumeFormatComparison/VolumeFormatComparison.html
 + (NSString*)stringForFileSize:(uint64_t)size
@@ -44,7 +40,7 @@
 {
     NSByteCountFormatter* fileSizeFormatter = [[NSByteCountFormatter alloc] init];
 
-    NSString* fullString = [fileSizeFormatter stringFromByteCount:fullSize];
+    NSString* fullSizeString = [fileSizeFormatter stringFromByteCount:fullSize];
 
     //figure out the magnitude of the two, since we can't rely on comparing the units because of localization and pluralization issues (for example, "1 byte of 2 bytes")
     BOOL partialUnitsSame;
@@ -54,16 +50,16 @@
     }
     else
     {
-        unsigned int const magnitudePartial = log(partialSize) / log(1000);
+        auto const magnitudePartial = static_cast<unsigned int>(log(partialSize) / log(1000));
         // we have to catch 0 with a special case, so might as well avoid the math for all of magnitude 0
-        unsigned int const magnitudeFull = fullSize < 1000 ? 0 : log(fullSize) / log(1000);
+        auto const magnitudeFull = static_cast<unsigned int>(fullSize < 1000 ? 0 : log(fullSize) / log(1000));
         partialUnitsSame = magnitudePartial == magnitudeFull;
     }
 
     fileSizeFormatter.includesUnit = !partialUnitsSame;
-    NSString* partialString = [fileSizeFormatter stringFromByteCount:partialSize];
+    NSString* partialSizeString = [fileSizeFormatter stringFromByteCount:partialSize];
 
-    return [NSString stringWithFormat:NSLocalizedString(@"%@ of %@", "file size string"), partialString, fullString];
+    return [NSString stringWithFormat:NSLocalizedString(@"%@ of %@", "file size string"), partialSizeString, fullSizeString];
 }
 
 + (NSString*)stringForSpeed:(CGFloat)speed
@@ -78,16 +74,21 @@
     return [self stringForSpeed:speed kb:@"K" mb:@"M" gb:@"G"];
 }
 
++ (NSString*)stringForSpeedAbbrevCompact:(CGFloat)speed
+{
+    return [self stringForSpeedCompact:speed kb:@"K" mb:@"M" gb:@"G"];
+}
+
 + (NSString*)stringForRatio:(CGFloat)ratio
 {
     //N/A is different than libtransmission's
 
-    if ((int)ratio == TR_RATIO_NA)
+    if (static_cast<int>(ratio) == TR_RATIO_NA)
     {
         return NSLocalizedString(@"N/A", "No Ratio");
     }
 
-    if ((int)ratio == TR_RATIO_INF)
+    if (static_cast<int>(ratio) == TR_RATIO_INF)
     {
         return @"\xE2\x88\x9E";
     }
@@ -107,17 +108,28 @@
 
 + (NSString*)percentString:(CGFloat)progress longDecimals:(BOOL)longDecimals
 {
+    static NSNumberFormatter* longFormatter;
+    static NSNumberFormatter* shortFormatter;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        longFormatter = [[NSNumberFormatter alloc] init];
+        longFormatter.numberStyle = NSNumberFormatterPercentStyle;
+        longFormatter.maximumFractionDigits = 2;
+        shortFormatter = [[NSNumberFormatter alloc] init];
+        shortFormatter.numberStyle = NSNumberFormatterPercentStyle;
+        shortFormatter.maximumFractionDigits = 1;
+    });
     if (progress >= 1.0)
     {
-        return [NSString localizedStringWithFormat:@"%d%%", 100];
+        return [shortFormatter stringFromNumber:@(1)];
     }
     else if (longDecimals)
     {
-        return [NSString localizedStringWithFormat:@"%.2f%%", tr_truncd(progress * 100.0, 2)];
+        return [longFormatter stringFromNumber:@(MIN(progress, 0.9999))];
     }
     else
     {
-        return [NSString localizedStringWithFormat:@"%.1f%%", tr_truncd(progress * 100.0, 1)];
+        return [shortFormatter stringFromNumber:@(MIN(progress, 0.999))];
     }
 }
 
@@ -140,31 +152,95 @@
     return components;
 }
 
++ (NSString*)convertedStringFromCString:(nonnull char const*)bytes
+{
+    // UTF-8 encoding
+    NSString* fullPath = @(bytes);
+    if (fullPath)
+    {
+        return fullPath;
+    }
+    // autodetection of the encoding (#3434)
+    NSData* data = [NSData dataWithBytes:(void const*)bytes length:sizeof(unsigned char) * strlen(bytes)];
+    [NSString stringEncodingForData:data encodingOptions:nil convertedString:&fullPath usedLossyConversion:nil];
+    if (fullPath)
+    {
+        return fullPath;
+    }
+    // hexa encoding
+    return data.hexString;
+}
+
 @end
 
 @implementation NSString (Private)
 
 + (NSString*)stringForSpeed:(CGFloat)speed kb:(NSString*)kb mb:(NSString*)mb gb:(NSString*)gb
 {
-    if (speed <= 999.95) //0.0 KB/s to 999.9 KB/s
+    if (speed < 999.95) // 0.0 KB/s to 999.9 KB/s
     {
         return [NSString localizedStringWithFormat:@"%.1f %@", speed, kb];
     }
 
     speed /= 1000.0;
 
-    if (speed <= 99.995) //1.00 MB/s to 99.99 MB/s
+    if (speed < 99.995) // 1.00 MB/s to 99.99 MB/s
     {
         return [NSString localizedStringWithFormat:@"%.2f %@", speed, mb];
     }
-    else if (speed <= 999.95) //100.0 MB/s to 999.9 MB/s
+    else if (speed < 999.95) // 100.0 MB/s to 999.9 MB/s
     {
         return [NSString localizedStringWithFormat:@"%.1f %@", speed, mb];
     }
-    else //insane speeds
+
+    speed /= 1000.0;
+
+    if (speed < 99.995) // 1.00 GB/s to 99.99 GB/s
     {
-        return [NSString localizedStringWithFormat:@"%.2f %@", (speed / 1000.0), gb];
+        return [NSString localizedStringWithFormat:@"%.2f %@", speed, gb];
     }
+    // 100.0 GB/s and above
+    return [NSString localizedStringWithFormat:@"%.1f %@", speed, gb];
+}
+
++ (NSString*)stringForSpeedCompact:(CGFloat)speed kb:(NSString*)kb mb:(NSString*)mb gb:(NSString*)gb
+{
+    if (speed < 99.95) // 0.0 KB/s to 99.9 KB/s
+    {
+        return [NSString localizedStringWithFormat:@"%.1f %@", speed, kb];
+    }
+    if (speed < 999.5) // 100 KB/s to 999 KB/s
+    {
+        return [NSString localizedStringWithFormat:@"%.0f %@", speed, kb];
+    }
+
+    speed /= 1000.0;
+
+    if (speed < 9.995) // 1.00 MB/s to 9.99 MB/s
+    {
+        return [NSString localizedStringWithFormat:@"%.2f %@", speed, mb];
+    }
+    if (speed < 99.95) // 10.0 MB/s to 99.9 MB/s
+    {
+        return [NSString localizedStringWithFormat:@"%.1f %@", speed, mb];
+    }
+    if (speed < 999.5) // 100 MB/s to 999 MB/s
+    {
+        return [NSString localizedStringWithFormat:@"%.0f %@", speed, mb];
+    }
+
+    speed /= 1000.0;
+
+    if (speed < 9.995) // 1.00 GB/s to 9.99 GB/s
+    {
+        return [NSString localizedStringWithFormat:@"%.2f %@", speed, gb];
+    }
+    if (speed < 99.95) // 10.0 GB/s to 99.9 GB/s
+    {
+        return [NSString localizedStringWithFormat:@"%.1f %@", speed, gb];
+    }
+    // 100 GB/s and above
+    return [NSString localizedStringWithFormat:@"%.0f %@", speed, gb];
 }
 
 @end

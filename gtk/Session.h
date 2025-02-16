@@ -1,43 +1,65 @@
-// Copyright © Transmission authors and contributors.
+// This file Copyright © Transmission authors and contributors.
 // This file is licensed under the MIT (SPDX: MIT) license,
 // A copy of this license can be found in licenses/ .
 
 #pragma once
 
-#include <cstddef>
-#include <memory>
-#include <string>
-#include <vector>
-
-#include <giomm.h>
-#include <glibmm.h>
-#include <gtkmm.h>
+#include "GtkCompat.h"
+#include "Torrent.h"
 
 #include <libtransmission/transmission.h>
-#include <libtransmission/tr-macros.h>
+#include <libtransmission/favicon-cache.h>
 #include <libtransmission/variant.h>
+
+#include <gdkmm/pixbuf.h>
+#include <giomm/file.h>
+#include <giomm/listmodel.h>
+#include <glibmm/object.h>
+#include <glibmm/refptr.h>
+#include <glibmm/ustring.h>
+#include <gtkmm/treemodel.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
 class Session : public Glib::Object
 {
 public:
-    enum ErrorCode
+    Session(Session&&) = delete;
+    Session(Session const&) = delete;
+    Session& operator=(Session&&) = delete;
+    Session& operator=(Session const&) = delete;
+
+    enum ErrorCode : uint16_t
     {
-        ERR_ADD_TORRENT_ERR = TR_PARSE_ERR,
-        ERR_ADD_TORRENT_DUP = TR_PARSE_DUPLICATE,
+        ERR_ADD_TORRENT_ERR = 1,
+        ERR_ADD_TORRENT_DUP = 2,
         ERR_NO_MORE_TORRENTS = 1000 /* finished adding a batch */
     };
 
+    enum PortTestIpProtocol : uint8_t
+    {
+        PORT_TEST_IPV4,
+        PORT_TEST_IPV6,
+        NUM_PORT_TEST_IP_PROTOCOL // Must always be the last value
+    };
+
+    using Model = IF_GTKMM4(Gio::ListModel, Gtk::TreeModel);
+
 public:
     ~Session() override;
-
-    TR_DISABLE_COPY_MOVE(Session)
 
     static Glib::RefPtr<Session> create(tr_session* session);
 
     tr_session* close();
 
-    /* Return the model used without incrementing the reference count */
-    Glib::RefPtr<Gtk::TreeModel> get_model() const;
+    Glib::RefPtr<Gio::ListModel> get_model() const;
+    Glib::RefPtr<Model> get_sorted_model() const;
 
     void clear();
 
@@ -48,6 +70,8 @@ public:
     size_t get_torrent_count() const;
 
     tr_torrent* find_torrent(tr_torrent_id_t id) const;
+
+    FaviconCache<Glib::RefPtr<Gdk::Pixbuf>>& favicon_cache() const;
 
     /******
     *******
@@ -76,7 +100,7 @@ public:
     void add_ctor(tr_ctor* ctor);
 
     /** Add a torrent. */
-    void add_torrent(tr_torrent*, bool do_notify);
+    void add_torrent(Glib::RefPtr<Torrent> const& torrent, bool do_notify);
 
     /**
      * Notifies listeners that torrents have been added.
@@ -114,20 +138,22 @@ public:
     ***
     **/
 
-    void port_test();
+    void port_test(PortTestIpProtocol ip_protocol);
+    bool port_test_pending(PortTestIpProtocol ip_protocol) const noexcept;
 
     void blocklist_update();
 
-    void exec(tr_variant const* request);
+    void exec(tr_variant const& request);
 
     void open_folder(tr_torrent_id_t torrent_id) const;
 
     sigc::signal<void(ErrorCode, Glib::ustring const&)>& signal_add_error();
     sigc::signal<void(tr_ctor*)>& signal_add_prompt();
-    sigc::signal<void(int)>& signal_blocklist_updated();
+    sigc::signal<void(bool)>& signal_blocklist_updated();
     sigc::signal<void(bool)>& signal_busy();
     sigc::signal<void(tr_quark)>& signal_prefs_changed();
-    sigc::signal<void(bool)>& signal_port_tested();
+    sigc::signal<void(std::optional<bool>, PortTestIpProtocol)>& signal_port_tested();
+    sigc::signal<void(std::unordered_set<tr_torrent_id_t> const&, Torrent::ChangeFlags)>& signal_torrents_changed();
 
 protected:
     explicit Session(tr_session* session);
@@ -136,36 +162,3 @@ private:
     class Impl;
     std::unique_ptr<Impl> const impl_;
 };
-
-/**
-***
-**/
-
-class TorrentModelColumns : public Gtk::TreeModelColumnRecord
-{
-public:
-    TorrentModelColumns();
-
-    Gtk::TreeModelColumn<Glib::ustring> name_collated;
-    Gtk::TreeModelColumn<gpointer> torrent;
-    Gtk::TreeModelColumn<tr_torrent_id_t> torrent_id;
-    Gtk::TreeModelColumn<double> speed_up;
-    Gtk::TreeModelColumn<double> speed_down;
-    Gtk::TreeModelColumn<int> active_peers_up;
-    Gtk::TreeModelColumn<int> active_peers_down;
-    Gtk::TreeModelColumn<double> recheck_progress;
-    Gtk::TreeModelColumn<bool> active;
-    Gtk::TreeModelColumn<tr_torrent_activity> activity;
-    Gtk::TreeModelColumn<bool> finished;
-    Gtk::TreeModelColumn<tr_priority_t> priority;
-    Gtk::TreeModelColumn<size_t> queue_position;
-    Gtk::TreeModelColumn<unsigned int> trackers;
-    /* tr_stat.error
-     * Tracked because ACTIVITY_FILTER_ERROR needs the row-changed events */
-    Gtk::TreeModelColumn<int> error;
-    /* tr_stat.{ peersSendingToUs + peersGettingFromUs + webseedsSendingToUs }
-     * Tracked because ACTIVITY_FILTER_ACTIVE needs the row-changed events */
-    Gtk::TreeModelColumn<int> active_peer_count;
-};
-
-extern TorrentModelColumns const torrent_cols;

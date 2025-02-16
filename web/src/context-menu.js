@@ -1,9 +1,9 @@
-/* @license This file Copyright (C) 2020-2022 Mnemosyne LLC.
+/* @license This file Copyright © Mnemosyne LLC.
    It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
    or any future license endorsed by Mnemosyne LLC.
    License text can be found in the licenses/ folder. */
 
-import { setEnabled } from './utils.js';
+import { OutsideClickListener, setEnabled } from './utils.js';
 
 export class ContextMenu extends EventTarget {
   constructor(action_manager) {
@@ -14,6 +14,10 @@ export class ContextMenu extends EventTarget {
     this.action_manager.addEventListener('change', this.action_listener);
 
     Object.assign(this, this._create());
+
+    this.outside = new OutsideClickListener(this.root);
+    this.outside.addEventListener('click', () => this.close());
+
     this.show();
   }
 
@@ -26,6 +30,7 @@ export class ContextMenu extends EventTarget {
 
   close() {
     if (!this.closed) {
+      this.outside.stop();
       this.action_manager.removeEventListener('change', this.action_listener);
       this.root.remove();
       this.dispatchEvent(new Event('close'));
@@ -47,6 +52,10 @@ export class ContextMenu extends EventTarget {
     const root = document.createElement('div');
     root.role = 'menu';
     root.classList.add('context-menu', 'popup');
+    root.addEventListener('contextmenu', (e_) => {
+      e_.preventDefault();
+    });
+    root.style.pointerEvents = 'none';
 
     const actions = {};
     const add_item = (action, warn = false) => {

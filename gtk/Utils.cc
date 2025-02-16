@@ -1,60 +1,88 @@
-// This file Copyright © 2008-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
 
-#include <array>
-#include <functional>
-#include <memory>
-#include <utility>
-
-#include <giomm.h> /* g_file_trash() */
-#include <glibmm/i18n.h>
-
-#include <gdk/gdk.h>
-#include <gtk/gtk.h>
-#if GTK_CHECK_VERSION(4, 0, 0) && defined(GDK_WINDOWING_X11)
-#include <gdk/x11/gdkx.h>
-#endif
-
-#include <fmt/core.h>
-
-#include <libtransmission/transmission.h> /* TR_RATIO_NA, TR_RATIO_INF */
-
-#include <libtransmission/error.h>
-#include <libtransmission/torrent-metainfo.h>
-#include <libtransmission/utils.h> /* tr_strratio() */
-#include <libtransmission/version.h> /* SHORT_VERSION_STRING */
-#include <libtransmission/web-utils.h>
+#include "Utils.h"
 
 #include "Prefs.h"
 #include "PrefsDialog.h"
 #include "Session.h"
-#include "Utils.h"
+
+#include <libtransmission/transmission.h> /* TR_RATIO_NA, TR_RATIO_INF */
+#include <libtransmission/error.h>
+#include <libtransmission/torrent-metainfo.h>
+#include <libtransmission/utils.h> /* tr_strratio() */
+#include <libtransmission/values.h>
+#include <libtransmission/version.h> /* SHORT_VERSION_STRING */
+#include <libtransmission/web-utils.h>
+
+#include <gdkmm/display.h>
+#include <giomm/appinfo.h>
+#include <giomm/asyncresult.h>
+#include <giomm/file.h>
+#include <glibmm/error.h>
+#include <glibmm/i18n.h>
+#include <glibmm/quark.h>
+#include <glibmm/spawn.h>
+#include <gtkmm/cellrenderertext.h>
+#include <gtkmm/liststore.h>
+#include <gtkmm/messagedialog.h>
+#include <gtkmm/treemodel.h>
+#include <gtkmm/treemodelcolumn.h>
+
+#if GTKMM_CHECK_VERSION(4, 0, 0)
+#include <gdkmm/clipboard.h>
+#include <gtkmm/eventcontroller.h>
+#include <gtkmm/gesture.h>
+#include <gtkmm/gestureclick.h>
+#else
+#include <gdkmm/window.h>
+#include <gtkmm/clipboard.h>
+#endif
+
+#include <fmt/core.h>
+
+#include <functional>
+#include <memory>
+#include <stack>
+#include <stdexcept>
+#include <utility>
+
+#include <gdk/gdk.h>
+#include <gtk/gtk.h>
+
+#if GTK_CHECK_VERSION(4, 0, 0) && defined(GDK_WINDOWING_X11)
+#include <optional>
+
+#include <gdk/x11/gdkx.h>
+#endif
 
 using namespace std::literals;
 
+using namespace libtransmission::Values;
+
 /***
-****  UNITS
+****
 ***/
 
-int const mem_K = 1024;
-char const* const mem_K_str = N_("KiB");
-char const* const mem_M_str = N_("MiB");
-char const* const mem_G_str = N_("GiB");
-char const* const mem_T_str = N_("TiB");
+void gtr_message(std::string const& message)
+{
+    // NOLINTNEXTLINE(*-vararg)
+    g_message("%s", message.c_str());
+}
 
-int const disk_K = 1000;
-char const* const disk_K_str = N_("kB");
-char const* const disk_M_str = N_("MB");
-char const* const disk_G_str = N_("GB");
-char const* const disk_T_str = N_("TB");
+void gtr_warning(std::string const& message)
+{
+    // NOLINTNEXTLINE(*-vararg)
+    g_warning("%s", message.c_str());
+}
 
-int const speed_K = 1000;
-char const* const speed_K_str = N_("kB/s");
-char const* const speed_M_str = N_("MB/s");
-char const* const speed_G_str = N_("GB/s");
-char const* const speed_T_str = N_("TB/s");
+void gtr_error(std::string const& message)
+{
+    // NOLINTNEXTLINE(*-vararg)
+    g_error("%s", message.c_str());
+}
 
 /***
 ****
@@ -86,9 +114,14 @@ Glib::ustring tr_strlratio(double ratio)
     return tr_strratio(ratio, gtr_get_unicode_string(GtrUnicode::Inf).c_str());
 }
 
-Glib::ustring tr_strlsize(guint64 size_in_bytes)
+Glib::ustring tr_strlsize(libtransmission::Values::Storage const& storage)
 {
-    return size_in_bytes == 0 ? Q_("None") : tr_formatter_size_B(size_in_bytes);
+    return storage.is_zero() ? Q_("None") : storage.to_string();
+}
+
+Glib::ustring tr_strlsize(guint64 n_bytes)
+{
+    return tr_strlsize(Storage{ n_bytes, Storage::Units::Bytes });
 }
 
 namespace
@@ -223,30 +256,9 @@ std::string tr_format_time_relative(time_t timestamp, time_t origin)
     return timestamp < origin ? tr_format_future_time(origin - timestamp) : tr_format_past_time(timestamp - origin);
 }
 
-namespace
-{
-
-Gtk::Window* getWindow(Gtk::Widget* w)
-{
-    if (w == nullptr)
-    {
-        return nullptr;
-    }
-
-    if (auto* const window = dynamic_cast<Gtk::Window*>(w); window != nullptr)
-    {
-        return window;
-    }
-
-    return static_cast<Gtk::Window*>(w->get_ancestor(Gtk::Window::get_type()));
-}
-
-} // namespace
-
 void gtr_add_torrent_error_dialog(Gtk::Widget& child, tr_torrent* duplicate_torrent, std::string const& filename)
 {
     Glib::ustring secondary;
-    auto* win = getWindow(&child);
 
     if (duplicate_torrent != nullptr)
     {
@@ -261,7 +273,7 @@ void gtr_add_torrent_error_dialog(Gtk::Widget& child, tr_torrent* duplicate_torr
     }
 
     auto w = std::make_shared<Gtk::MessageDialog>(
-        *win,
+        gtr_widget_get_window(child),
         _("Couldn't open torrent"),
         false,
         TR_GTK_MESSAGE_TYPE(ERROR),
@@ -273,10 +285,10 @@ void gtr_add_torrent_error_dialog(Gtk::Widget& child, tr_torrent* duplicate_torr
 
 /* pop up the context menu if a user right-clicks.
    if the row they right-click on isn't selected, select it. */
-bool on_tree_view_button_pressed(
+bool on_item_view_button_pressed(
     Gtk::TreeView& view,
-    double view_x,
-    double view_y,
+    double event_x,
+    double event_y,
     bool context_menu_requested,
     std::function<void(double, double)> const& callback)
 {
@@ -285,7 +297,7 @@ bool on_tree_view_button_pressed(
         Gtk::TreeModel::Path path;
 
         if (auto const selection = view.get_selection();
-            view.get_path_at_pos((int)view_x, (int)view_y, path) && !selection->is_selected(path))
+            view.get_path_at_pos(static_cast<int>(event_x), static_cast<int>(event_y), path) && !selection->is_selected(path))
         {
             selection->unselect_all();
             selection->select(path);
@@ -293,7 +305,7 @@ bool on_tree_view_button_pressed(
 
         if (callback)
         {
-            callback(view_x, view_y);
+            callback(event_x, event_y);
         }
 
         return true;
@@ -302,11 +314,68 @@ bool on_tree_view_button_pressed(
     return false;
 }
 
+#if GTKMM_CHECK_VERSION(4, 0, 0)
+
+namespace
+{
+
+// NOTE: Estimated position (`get_position_from_allocation` vfunc is private)
+std::optional<guint> get_position_from_allocation(Gtk::ListView& view, double view_x, double view_y)
+{
+    auto* child = view.pick(view_x, view_y);
+    while (child != nullptr && child->get_css_name() != "row")
+    {
+        child = child->get_parent();
+    }
+
+    if (child == nullptr)
+    {
+        return {};
+    }
+
+    double top_x = 0;
+    double top_y = 0;
+    child->translate_coordinates(view, 0, 0, top_x, top_y);
+    return static_cast<guint>((top_y + view.get_vadjustment()->get_value()) / child->get_allocated_height());
+}
+
+} // namespace
+
+bool on_item_view_button_pressed(
+    Gtk::ListView& view,
+    double event_x,
+    double event_y,
+    bool context_menu_requested,
+    std::function<void(double, double)> const& callback)
+{
+    if (context_menu_requested)
+    {
+        if (auto const position = get_position_from_allocation(view, event_x, event_y); position.has_value())
+        {
+            if (auto const selection_model = view.get_model(); !selection_model->is_selected(position.value()))
+            {
+                selection_model->select_item(position.value(), true);
+            }
+        }
+
+        if (callback)
+        {
+            callback(event_x, event_y);
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+#endif
+
 /* if the user clicked in an empty area of the list,
  * clear all the selections. */
-bool on_tree_view_button_released(Gtk::TreeView& view, double view_x, double view_y)
+bool on_item_view_button_released(Gtk::TreeView& view, double event_x, double event_y)
 {
-    if (Gtk::TreeModel::Path path; !view.get_path_at_pos((int)view_x, (int)view_y, path))
+    if (Gtk::TreeModel::Path path; !view.get_path_at_pos(static_cast<int>(event_x), static_cast<int>(event_y), path))
     {
         view.get_selection()->unselect_all();
     }
@@ -314,8 +383,43 @@ bool on_tree_view_button_released(Gtk::TreeView& view, double view_x, double vie
     return false;
 }
 
-void setup_tree_view_button_event_handling(
-    Gtk::TreeView& view,
+#if GTKMM_CHECK_VERSION(4, 0, 0)
+
+bool on_item_view_button_released(Gtk::ListView& view, double event_x, double event_y)
+{
+    if (!get_position_from_allocation(view, event_x, event_y).has_value())
+    {
+        view.get_model()->unselect_all();
+    }
+
+    return false;
+}
+
+#endif
+
+namespace
+{
+
+#if GTKMM_CHECK_VERSION(4, 0, 0)
+
+std::pair<int, int> convert_widget_to_bin_window_coords(Gtk::TreeView const& view, int view_x, int view_y)
+{
+    int event_x = 0;
+    int event_y = 0;
+    view.convert_widget_to_bin_window_coords(view_x, view_y, event_x, event_y);
+    return { event_x, event_y };
+}
+
+std::pair<int, int> convert_widget_to_bin_window_coords(Gtk::ListView const& /*view*/, int view_x, int view_y)
+{
+    return { view_x, view_y };
+}
+
+#endif
+
+template<typename T>
+void setup_item_view_button_event_handling_impl(
+    T& view,
     std::function<bool(guint, TrGdkModifierType, double, double, bool)> const& press_callback,
     std::function<bool(double, double)> const& release_callback)
 {
@@ -326,10 +430,16 @@ void setup_tree_view_button_event_handling(
     if (press_callback)
     {
         controller->signal_pressed().connect(
-            [&view, press_callback, controller](int /*n_press*/, double event_x, double event_y)
+            [&view, press_callback, controller](int /*n_press*/, double view_x, double view_y)
             {
+                auto const [event_x, event_y] = convert_widget_to_bin_window_coords(
+                    view,
+                    static_cast<int>(view_x),
+                    static_cast<int>(view_y));
+
                 auto* const sequence = controller->get_current_sequence();
                 auto const event = controller->get_last_event(sequence);
+
                 if (event->get_event_type() == TR_GDK_EVENT_TYPE(BUTTON_PRESS) &&
                     press_callback(
                         event->get_button(),
@@ -346,10 +456,16 @@ void setup_tree_view_button_event_handling(
     if (release_callback)
     {
         controller->signal_released().connect(
-            [&view, release_callback, controller](int /*n_press*/, double event_x, double event_y)
+            [&view, release_callback, controller](int /*n_press*/, double view_x, double view_y)
             {
+                auto const [event_x, event_y] = convert_widget_to_bin_window_coords(
+                    view,
+                    static_cast<int>(view_x),
+                    static_cast<int>(view_y));
+
                 auto* const sequence = controller->get_current_sequence();
                 auto const event = controller->get_last_event(sequence);
+
                 if (event->get_event_type() == TR_GDK_EVENT_TYPE(BUTTON_RELEASE) && release_callback(event_x, event_y))
                 {
                     controller->set_sequence_state(sequence, Gtk::EventSequenceState::CLAIMED);
@@ -373,14 +489,40 @@ void setup_tree_view_button_event_handling(
 #endif
 }
 
-bool gtr_file_trash_or_remove(std::string const& filename, tr_error** error)
-{
-    bool trashed = false;
-    bool result = true;
+} // namespace
 
+void setup_item_view_button_event_handling(
+    Gtk::TreeView& view,
+    std::function<bool(guint, TrGdkModifierType, double, double, bool)> const& press_callback,
+    std::function<bool(double, double)> const& release_callback)
+{
+    setup_item_view_button_event_handling_impl(view, press_callback, release_callback);
+}
+
+#if GTKMM_CHECK_VERSION(4, 0, 0)
+
+void setup_item_view_button_event_handling(
+    Gtk::ListView& view,
+    std::function<bool(guint, TrGdkModifierType, double, double, bool)> const& press_callback,
+    std::function<bool(double, double)> const& release_callback)
+{
+    setup_item_view_button_event_handling_impl(view, press_callback, release_callback);
+}
+
+#endif
+
+bool gtr_file_trash_or_remove(std::string const& filename, tr_error* error)
+{
     g_return_val_if_fail(!filename.empty(), false);
 
+    auto local_error = tr_error{};
+    if (error == nullptr)
+    {
+        error = &local_error;
+    }
+
     auto const file = Gio::File::create_for_path(filename);
+    bool trashed = false;
 
     if (gtr_pref_flag_get(TR_KEY_trash_can_enabled))
     {
@@ -390,18 +532,16 @@ bool gtr_file_trash_or_remove(std::string const& filename, tr_error** error)
         }
         catch (Glib::Error const& e)
         {
-            g_message(
-                "%s",
-                fmt::format(
-                    _("Couldn't move '{path}' to trash: {error} ({error_code})"),
-                    fmt::arg("path", filename),
-                    fmt::arg("error", TR_GLIB_EXCEPTION_WHAT(e)),
-                    fmt::arg("error_code", e.code()))
-                    .c_str());
-            tr_error_set(error, e.code(), TR_GLIB_EXCEPTION_WHAT(e));
+            error->set(e.code(), TR_GLIB_EXCEPTION_WHAT(e));
+            gtr_message(fmt::format(
+                _("Couldn't move '{path}' to trash: {error} ({error_code})"),
+                fmt::arg("path", filename),
+                fmt::arg("error", error->message()),
+                fmt::arg("error_code", error->code())));
         }
     }
 
+    bool result = true;
     if (!trashed)
     {
         try
@@ -410,21 +550,53 @@ bool gtr_file_trash_or_remove(std::string const& filename, tr_error** error)
         }
         catch (Glib::Error const& e)
         {
-            g_message(
-                "%s",
-                fmt::format(
-                    _("Couldn't remove '{path}': {error} ({error_code})"),
-                    fmt::arg("path", filename),
-                    fmt::arg("error", TR_GLIB_EXCEPTION_WHAT(e)),
-                    fmt::arg("error_code", e.code()))
-                    .c_str());
-            tr_error_clear(error);
-            tr_error_set(error, e.code(), TR_GLIB_EXCEPTION_WHAT(e));
+            error->set(e.code(), TR_GLIB_EXCEPTION_WHAT(e));
+            gtr_message(fmt::format(
+                _("Couldn't remove '{path}': {error} ({error_code})"),
+                fmt::arg("path", filename),
+                fmt::arg("error", error->message()),
+                fmt::arg("error_code", error->code())));
             result = false;
         }
     }
 
     return result;
+}
+
+namespace
+{
+
+void object_signal_notify_callback(GObject* object, GParamSpec* /*param_spec*/, gpointer data)
+{
+    if (object != nullptr && data != nullptr)
+    {
+        if (auto const* const slot = Glib::SignalProxyBase::data_to_slot(data); slot != nullptr)
+        {
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
+            (*static_cast<sigc::slot<TrObjectSignalNotifyCallback> const*>(slot))(Glib::wrap(object, true));
+        }
+    }
+}
+
+} // namespace
+
+Glib::SignalProxy<TrObjectSignalNotifyCallback> gtr_object_signal_notify(Glib::ObjectBase& object)
+{
+    static auto const object_signal_notify_info = Glib::SignalProxyInfo{
+        .signal_name = "notify",
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        .callback = reinterpret_cast<GCallback>(&object_signal_notify_callback),
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        .notify_callback = reinterpret_cast<GCallback>(&object_signal_notify_callback),
+    };
+
+    return { &object, &object_signal_notify_info };
+}
+
+void gtr_object_notify_emit(Glib::ObjectBase& object)
+{
+    // NOLINTNEXTLINE(*-vararg)
+    g_signal_emit_by_name(object.gobj(), "notify", nullptr);
 }
 
 Glib::ustring gtr_get_help_uri()
@@ -469,14 +641,12 @@ void gtr_open_uri(Glib::ustring const& uri)
 
         if (!opened)
         {
-            g_message("%s", fmt::format(_("Couldn't open '{url}'"), fmt::arg("url", uri)).c_str());
+            gtr_message(fmt::format(_("Couldn't open '{url}'"), fmt::arg("url", uri)));
         }
     }
 }
 
-/***
-****
-***/
+// ---
 
 namespace
 {
@@ -484,7 +654,7 @@ namespace
 class EnumComboModelColumns : public Gtk::TreeModelColumnRecord
 {
 public:
-    EnumComboModelColumns()
+    EnumComboModelColumns() noexcept
     {
         add(value);
         add(label);
@@ -498,12 +668,12 @@ EnumComboModelColumns const enum_combo_cols;
 
 } // namespace
 
-void gtr_combo_box_set_active_enum(Gtk::ComboBox& combo_box, int value)
+void gtr_combo_box_set_active_enum(Gtk::ComboBox& combo, int value)
 {
     auto const& column = enum_combo_cols.value;
 
     /* do the value and current value match? */
-    if (auto const iter = combo_box.get_active(); iter)
+    if (auto const iter = combo.get_active(); iter)
     {
         if (iter->get_value(column) == value)
         {
@@ -512,21 +682,14 @@ void gtr_combo_box_set_active_enum(Gtk::ComboBox& combo_box, int value)
     }
 
     /* find the one to select */
-    for (auto const& row : combo_box.get_model()->children())
+    for (auto const& row : combo.get_model()->children())
     {
         if (row.get_value(column) == value)
         {
-            combo_box.set_active(TR_GTK_TREE_MODEL_CHILD_ITER(row));
+            combo.set_active(TR_GTK_TREE_MODEL_CHILD_ITER(row));
             return;
         }
     }
-}
-
-Gtk::ComboBox* gtr_combo_box_new_enum(std::vector<std::pair<Glib::ustring, int>> const& items)
-{
-    auto* w = Gtk::make_managed<Gtk::ComboBox>();
-    gtr_combo_box_set_enum(*w, items);
-    return w;
 }
 
 void gtr_combo_box_set_enum(Gtk::ComboBox& combo, std::vector<std::pair<Glib::ustring, int>> const& items)
@@ -548,23 +711,16 @@ void gtr_combo_box_set_enum(Gtk::ComboBox& combo, std::vector<std::pair<Glib::us
     combo.add_attribute(r->property_text(), enum_combo_cols.label);
 }
 
-int gtr_combo_box_get_active_enum(Gtk::ComboBox const& combo_box)
+int gtr_combo_box_get_active_enum(Gtk::ComboBox const& combo)
 {
     int value = 0;
 
-    if (auto const iter = combo_box.get_active(); iter)
+    if (auto const iter = combo.get_active(); iter)
     {
         iter->get_value(0, value);
     }
 
     return value;
-}
-
-Gtk::ComboBox* gtr_priority_combo_new()
-{
-    auto* w = Gtk::make_managed<Gtk::ComboBox>();
-    gtr_priority_combo_init(*w);
-    return w;
 }
 
 void gtr_priority_combo_init(Gtk::ComboBox& combo)
@@ -578,56 +734,79 @@ void gtr_priority_combo_init(Gtk::ComboBox& combo)
         });
 }
 
-/***
-****
-***/
+// ---
 
-namespace
+void gtr_widget_set_visible(Gtk::Widget& widget, bool is_visible)
 {
+    static auto const ChildHiddenKey = Glib::Quark("gtr-child-hidden");
 
-auto const ChildHiddenKey = Glib::Quark("gtr-child-hidden");
-
-} // namespace
-
-void gtr_widget_set_visible(Gtk::Widget& w, bool b)
-{
-    /* toggle the transient children, too */
-    if (auto const* const window = dynamic_cast<Gtk::Window*>(&w); window != nullptr)
+    auto* const widget_as_window = dynamic_cast<Gtk::Window*>(&widget);
+    if (widget_as_window == nullptr)
     {
-        auto top_levels = Gtk::Window::list_toplevels();
-
-        for (auto top_level_it = top_levels.begin(); top_level_it != top_levels.end();)
-        {
-            auto* const l = *top_level_it++;
-
-            if (l->get_transient_for() != window)
-            {
-                continue;
-            }
-
-            if (l->get_visible() == b)
-            {
-                continue;
-            }
-
-            if (b && l->get_data(ChildHiddenKey) != nullptr)
-            {
-                l->steal_data(ChildHiddenKey);
-                gtr_widget_set_visible(*l, true);
-            }
-            else if (!b)
-            {
-                l->set_data(ChildHiddenKey, GINT_TO_POINTER(1));
-                gtr_widget_set_visible(*l, false);
-
-                // Retrieve updated top-levels list in case hiding the window resulted in its destruction
-                top_levels = Gtk::Window::list_toplevels();
-                top_level_it = top_levels.begin();
-            }
-        }
+        widget.set_visible(is_visible);
+        return;
     }
 
-    w.set_visible(b);
+    /* toggle the transient children, too */
+    auto windows = std::stack<Gtk::Window*>();
+    windows.push(widget_as_window);
+
+    while (!windows.empty())
+    {
+        auto* const window = windows.top();
+        bool transient_child_found = false;
+
+        for (auto* const top_level_window : Gtk::Window::list_toplevels())
+        {
+#if !GTKMM_CHECK_VERSION(4, 0, 0)
+            if (top_level_window->get_window_type() != Gtk::WINDOW_TOPLEVEL)
+            {
+                continue;
+            }
+#endif
+
+            if (top_level_window->get_transient_for() != window || top_level_window->get_visible() == is_visible)
+            {
+                continue;
+            }
+
+            windows.push(top_level_window);
+            transient_child_found = true;
+            break;
+        }
+
+        if (transient_child_found)
+        {
+            continue;
+        }
+
+        if (is_visible && window->get_data(ChildHiddenKey) != nullptr)
+        {
+            window->steal_data(ChildHiddenKey);
+            window->set_visible(true);
+        }
+        else if (!is_visible)
+        {
+            window->set_data(ChildHiddenKey, GINT_TO_POINTER(1));
+            window->set_visible(false);
+        }
+
+        windows.pop();
+    }
+}
+
+Gtk::Window& gtr_widget_get_window(Gtk::Widget& widget)
+{
+    if (auto* const window = dynamic_cast<Gtk::Window*>(TR_GTK_WIDGET_GET_ROOT(widget)); window != nullptr)
+    {
+        return *window;
+    }
+
+#if defined(G_DISABLE_ASSERT)
+    throw std::logic_error("Supplied widget doesn't have a window");
+#else
+    g_assert_not_reached();
+#endif
 }
 
 void gtr_window_set_skip_taskbar_hint([[maybe_unused]] Gtk::Window& window, [[maybe_unused]] bool value)
@@ -665,18 +844,14 @@ void gtr_window_raise([[maybe_unused]] Gtk::Window& window)
 #endif
 }
 
-/***
-****
-***/
+// ---
 
 void gtr_unrecognized_url_dialog(Gtk::Widget& parent, Glib::ustring const& url)
 {
-    auto* window = getWindow(&parent);
-
     Glib::ustring gstr;
 
     auto w = std::make_shared<Gtk::MessageDialog>(
-        *window,
+        gtr_widget_get_window(parent),
         fmt::format(_("Unsupported URL: '{url}'"), fmt::arg("url", url)),
         false /*use markup*/,
         TR_GTK_MESSAGE_TYPE(ERROR),
@@ -704,7 +879,7 @@ void gtr_paste_clipboard_url_into_entry(Gtk::Entry& entry)
 {
     auto const process = [&entry](Glib::ustring const& text)
     {
-        if (auto const sv = tr_strvStrip(text.raw());
+        if (auto const sv = tr_strv_strip(text.raw());
             !sv.empty() && (tr_urlIsValid(sv) || tr_magnet_metainfo{}.parseMagnet(sv)))
         {
             entry.set_text(text);

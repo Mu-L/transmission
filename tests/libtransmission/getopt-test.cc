@@ -3,12 +3,11 @@
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
 
-#include "transmission.h"
-#include "tr-getopt.h"
+#include <array>
+
+#include <libtransmission/tr-getopt.h>
 
 #include "gtest/gtest.h"
-
-#include <array>
 
 namespace
 {
@@ -39,8 +38,8 @@ protected:
         auto n = int{};
         tr_optind = 1;
 
-        int c;
-        char const* argstr;
+        auto c = int{};
+        char const* argstr = nullptr;
         while ((c = tr_getopt("summary", argc, argv, Options.data(), &argstr)) != TR_OPT_DONE)
         {
             EXPECT_LT(n, expected_n);

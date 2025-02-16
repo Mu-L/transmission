@@ -1,4 +1,4 @@
-// This file Copyright © 2010-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -7,12 +7,9 @@
 
 #include <QComboBox>
 
-#include <libtransmission/tr-macros.h>
-
 class FilterBarComboBox : public QComboBox
 {
     Q_OBJECT
-    TR_DISABLE_COPY_MOVE(FilterBarComboBox)
 
 public:
     enum
@@ -23,6 +20,10 @@ public:
     };
 
     explicit FilterBarComboBox(QWidget* parent = nullptr);
+    FilterBarComboBox(FilterBarComboBox&&) = delete;
+    FilterBarComboBox(FilterBarComboBox const&) = delete;
+    FilterBarComboBox& operator=(FilterBarComboBox&&) = delete;
+    FilterBarComboBox& operator=(FilterBarComboBox const&) = delete;
 
     // QWidget
     QSize minimumSizeHint() const override;

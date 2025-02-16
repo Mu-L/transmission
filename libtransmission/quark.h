@@ -1,4 +1,4 @@
-// This file Copyright © 2012-2022 Mnemosyne LLC.
+// This file Copyright © Mnemosyne LLC.
 // It may be used under GPLv2 (SPDX: GPL-2.0-only), GPLv3 (SPDX: GPL-3.0-only),
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
@@ -50,6 +50,7 @@ enum
     TR_KEY_availability, // rpc
     TR_KEY_bandwidth_priority,
     TR_KEY_bandwidthPriority,
+    TR_KEY_beginPiece,
     TR_KEY_bind_address_ipv4,
     TR_KEY_bind_address_ipv6,
     TR_KEY_bitfield,
@@ -111,6 +112,7 @@ enum
     TR_KEY_editDate,
     TR_KEY_encoding,
     TR_KEY_encryption,
+    TR_KEY_endPiece,
     TR_KEY_error,
     TR_KEY_errorString,
     TR_KEY_eta,
@@ -147,6 +149,7 @@ enum
     TR_KEY_honorsSessionLimits,
     TR_KEY_host,
     TR_KEY_id,
+    TR_KEY_id_timestamp,
     TR_KEY_idle_limit,
     TR_KEY_idle_mode,
     TR_KEY_idle_seeding_limit,
@@ -157,6 +160,7 @@ enum
     TR_KEY_incomplete_dir_enabled,
     TR_KEY_info,
     TR_KEY_inhibit_desktop_hibernation,
+    TR_KEY_ipProtocol,
     TR_KEY_ipv4,
     TR_KEY_ipv6,
     TR_KEY_isBackup,
@@ -168,6 +172,7 @@ enum
     TR_KEY_isStalled,
     TR_KEY_isUTP,
     TR_KEY_isUploadingTo,
+    TR_KEY_is_queued,
     TR_KEY_labels,
     TR_KEY_lastAnnouncePeerCount,
     TR_KEY_lastAnnounceResult,
@@ -220,7 +225,6 @@ enum
     TR_KEY_paused,
     TR_KEY_pausedTorrentCount,
     TR_KEY_peer_congestion_algorithm,
-    TR_KEY_peer_id_ttl_hours,
     TR_KEY_peer_limit,
     TR_KEY_peer_limit_global,
     TR_KEY_peer_limit_per_torrent,
@@ -241,6 +245,7 @@ enum
     TR_KEY_percentComplete,
     TR_KEY_percentDone,
     TR_KEY_pex_enabled,
+    TR_KEY_pidfile,
     TR_KEY_piece,
     TR_KEY_piece_length,
     TR_KEY_pieceCount,
@@ -251,7 +256,7 @@ enum
     TR_KEY_port_forwarding_enabled,
     TR_KEY_port_is_open,
     TR_KEY_preallocation,
-    TR_KEY_prefetch_enabled,
+    TR_KEY_preferred_transport,
     TR_KEY_primary_mime_type,
     TR_KEY_priorities,
     TR_KEY_priority,
@@ -287,6 +292,7 @@ enum
     TR_KEY_recheckProgress,
     TR_KEY_remote_session_enabled,
     TR_KEY_remote_session_host,
+    TR_KEY_remote_session_https,
     TR_KEY_remote_session_password,
     TR_KEY_remote_session_port,
     TR_KEY_remote_session_requres_authentication,
@@ -332,6 +338,7 @@ enum
     TR_KEY_seedRatioMode,
     TR_KEY_seederCount,
     TR_KEY_seeding_time_seconds,
+    TR_KEY_sequentialDownload,
     TR_KEY_session_count,
     TR_KEY_session_id,
     TR_KEY_sessionCount,
@@ -347,6 +354,7 @@ enum
     TR_KEY_size_bytes,
     TR_KEY_size_units,
     TR_KEY_sizeWhenDone,
+    TR_KEY_sleep_per_seconds_during_verify,
     TR_KEY_sort_mode,
     TR_KEY_sort_reversed,
     TR_KEY_source,
@@ -361,6 +369,7 @@ enum
     TR_KEY_start_added_torrents,
     TR_KEY_start_minimized,
     TR_KEY_startDate,
+    TR_KEY_start_paused,
     TR_KEY_status,
     TR_KEY_statusbar_stats,
     TR_KEY_tag,
@@ -370,6 +379,7 @@ enum
     TR_KEY_torrent_added,
     TR_KEY_torrent_added_notification_command,
     TR_KEY_torrent_added_notification_enabled,
+    TR_KEY_torrent_added_verify_mode,
     TR_KEY_torrent_complete_notification_command,
     TR_KEY_torrent_complete_notification_enabled,
     TR_KEY_torrent_complete_sound_command,
@@ -418,8 +428,10 @@ enum
     TR_KEY_wanted,
     TR_KEY_watch_dir,
     TR_KEY_watch_dir_enabled,
+    TR_KEY_watch_dir_force_generic,
     TR_KEY_webseeds,
     TR_KEY_webseedsSendingToUs,
+    TR_KEY_yourip,
     TR_N_KEYS
 };
 
@@ -442,4 +454,4 @@ enum
  * exists for that string, it is returned so that no duplicates are
  * created.
  */
-[[nodiscard]] tr_quark tr_quark_new(std::string_view);
+[[nodiscard]] tr_quark tr_quark_new(std::string_view str);

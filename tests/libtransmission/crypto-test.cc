@@ -3,23 +3,20 @@
 // or any future license endorsed by Mnemosyne LLC.
 // License text can be found in the licenses/ folder.
 
-#include <algorithm>
 #include <array>
+#include <cassert>
+#include <cstddef> // std::byte, size_t
+#include <cstdint> // uint8_t
 #include <cstring>
 #include <iostream>
-#include <numeric>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 
-#include "transmission.h"
-
-#include "peer-mse.h"
-#include "crypto-utils.h"
-#include "utils.h"
-
-#include "crypto-test-ref.h"
+#include <libtransmission/peer-mse.h>
+#include <libtransmission/crypto-utils.h>
+#include <libtransmission/tr-macros.h>
+#include <libtransmission/utils.h>
 
 #include "gtest/gtest.h"
 
@@ -51,8 +48,8 @@ std::string toString(std::array<std::byte, N> const& array)
 
 TEST(Crypto, DH)
 {
-    auto a = tr_message_stream_encryption::DH{};
-    auto b = tr_message_stream_encryption::DH{};
+    auto a = tr_message_stream_encryption::DH{ tr_message_stream_encryption::DH::randomPrivateKey() };
+    auto b = tr_message_stream_encryption::DH{ tr_message_stream_encryption::DH::randomPrivateKey() };
 
     a.setPeerPublicKey(b.publicKey());
     b.setPeerPublicKey(a.publicKey());
@@ -60,7 +57,7 @@ TEST(Crypto, DH)
     EXPECT_EQ(a.secret(), b.secret());
     EXPECT_EQ(96U, std::size(a.secret()));
 
-    auto c = tr_message_stream_encryption::DH{};
+    auto c = tr_message_stream_encryption::DH{ tr_message_stream_encryption::DH::randomPrivateKey() };
     c.setPeerPublicKey(b.publicKey());
     EXPECT_NE(a.secret(), c.secret());
     EXPECT_NE(toString(a.secret()), toString(c.secret()));
@@ -68,8 +65,8 @@ TEST(Crypto, DH)
 
 TEST(Crypto, encryptDecrypt)
 {
-    auto a_dh = tr_message_stream_encryption::DH{};
-    auto b_dh = tr_message_stream_encryption::DH{};
+    auto a_dh = tr_message_stream_encryption::DH{ tr_message_stream_encryption::DH::randomPrivateKey() };
+    auto b_dh = tr_message_stream_encryption::DH{ tr_message_stream_encryption::DH::randomPrivateKey() };
 
     a_dh.setPeerPublicKey(b_dh.publicKey());
     b_dh.setPeerPublicKey(a_dh.publicKey());
@@ -79,25 +76,21 @@ TEST(Crypto, encryptDecrypt)
     auto decrypted1 = std::array<char, 128>{};
 
     auto a = tr_message_stream_encryption::Filter{};
-    a.encryptInit(false, a_dh, SomeHash);
-    std::copy_n(std::begin(Input1), std::size(Input1), std::begin(encrypted1));
-    a.encrypt(std::size(Input1), std::data(encrypted1));
+    a.encrypt_init(false, a_dh, SomeHash);
+    a.encrypt(std::data(Input1), std::size(Input1), std::data(encrypted1));
     auto b = tr_message_stream_encryption::Filter{};
-    b.decryptInit(true, b_dh, SomeHash);
-    std::copy_n(std::begin(encrypted1), std::size(Input1), std::begin(decrypted1));
-    b.decrypt(std::size(Input1), std::data(decrypted1));
+    b.decrypt_init(true, b_dh, SomeHash);
+    b.decrypt(std::data(encrypted1), std::size(Input1), std::data(decrypted1));
     EXPECT_EQ(Input1, std::data(decrypted1)) << "Input1 " << Input1 << " decrypted1 " << std::data(decrypted1);
 
     auto constexpr Input2 = "@#)C$@)#(*%bvkdjfhwbc039bc4603756VB3)"sv;
     auto encrypted2 = std::array<char, 128>{};
     auto decrypted2 = std::array<char, 128>{};
 
-    b.encryptInit(true, b_dh, SomeHash);
-    std::copy_n(std::begin(Input2), std::size(Input2), std::begin(encrypted2));
-    b.encrypt(std::size(Input2), std::data(encrypted2));
-    a.decryptInit(false, a_dh, SomeHash);
-    std::copy_n(std::begin(encrypted2), std::size(Input2), std::begin(decrypted2));
-    a.decrypt(std::size(Input2), std::data(decrypted2));
+    b.encrypt_init(true, b_dh, SomeHash);
+    b.encrypt(std::data(Input2), std::size(Input2), std::data(encrypted2));
+    a.decrypt_init(false, a_dh, SomeHash);
+    a.decrypt(std::data(encrypted2), std::size(Input2), std::data(decrypted2));
     EXPECT_EQ(Input2, std::data(decrypted2)) << "Input2 " << Input2 << " decrypted2 " << std::data(decrypted2);
 }
 
@@ -142,12 +135,12 @@ TEST(Crypto, ssha1)
         std::string_view ssha1;
     };
 
-    auto constexpr Tests = std::array<LocalTest, 2>{ {
+    static auto constexpr Tests = std::array<LocalTest, 2>{ {
         { "test"sv, "{15ad0621b259a84d24dcd4e75b09004e98a3627bAMbyRHJy"sv },
         { "QNY)(*#$B)!_X$B !_B#($^!)*&$%CV!#)&$C!@$(P*)"sv, "{10e2d7acbb104d970514a147cd16d51dfa40fb3c0OSwJtOL"sv },
     } };
 
-    auto constexpr HashCount = size_t{ 4 * 1024 };
+    static auto constexpr HashCount = size_t{ 4U } * 1024U;
 
     for (auto const& [plain_text, ssha1] : Tests)
     {
@@ -155,19 +148,11 @@ TEST(Crypto, ssha1)
         hashes.reserve(HashCount);
 
         EXPECT_TRUE(tr_ssha1_matches(ssha1, plain_text));
-        EXPECT_TRUE(tr_ssha1_matches_(ssha1, plain_text));
-
-        using ssha1_func = std::string (*)(std::string_view plain_text);
-        static auto constexpr Ssha1Funcs = std::array<ssha1_func, 2>{ tr_ssha1, tr_ssha1_ };
 
         for (size_t j = 0; j < HashCount; ++j)
         {
-            auto const hash = Ssha1Funcs[j % 2](plain_text);
-
-            // phrase matches each of generated hashes
+            auto const hash = tr_ssha1(plain_text);
             EXPECT_TRUE(tr_ssha1_matches(hash, plain_text));
-            EXPECT_TRUE(tr_ssha1_matches_(hash, plain_text));
-
             hashes.insert(hash);
         }
 
@@ -176,15 +161,12 @@ TEST(Crypto, ssha1)
 
         /* exchange two first chars */
         auto phrase = std::string{ plain_text };
-        phrase[0] ^= phrase[1];
-        phrase[1] ^= phrase[0];
-        phrase[0] ^= phrase[1];
+        std::swap(phrase[0], phrase[1]);
 
         for (auto const& hash : hashes)
         {
             /* changed phrase doesn't match the hashes */
             EXPECT_FALSE(tr_ssha1_matches(hash, phrase));
-            EXPECT_FALSE(tr_ssha1_matches_(hash, phrase));
         }
     }
 
@@ -206,12 +188,14 @@ TEST(Crypto, sha1FromString)
     // lowercase hex
     auto const baseline = "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"sv;
     auto const lc = tr_sha1_from_string(baseline);
-    EXPECT_TRUE(lc);
+    EXPECT_TRUE(lc.has_value());
+    assert(lc.has_value());
     EXPECT_EQ(baseline, tr_sha1_to_string(*lc));
 
     // uppercase hex should yield the same result
     auto const uc = tr_sha1_from_string(tr_strupper(baseline));
-    EXPECT_TRUE(uc);
+    EXPECT_TRUE(uc.has_value());
+    assert(uc.has_value());
     EXPECT_EQ(*lc, *uc);
 }
 
@@ -230,12 +214,14 @@ TEST(Crypto, sha256FromString)
     // lowercase hex
     auto const baseline = "05d58dfd14ed21d33add137eb7a2c5d4ef5aaa4a945e654363d32b7c4bf5c929"sv;
     auto const lc = tr_sha256_from_string(baseline);
-    EXPECT_TRUE(lc);
+    EXPECT_TRUE(lc.has_value());
+    assert(lc.has_value());
     EXPECT_EQ(baseline, tr_sha256_to_string(*lc));
 
     // uppercase hex should yield the same result
     auto const uc = tr_sha256_from_string(tr_strupper(baseline));
-    EXPECT_TRUE(uc);
+    EXPECT_TRUE(uc.has_value());
+    assert(uc.has_value());
     EXPECT_EQ(*lc, *uc);
 }
 
@@ -244,11 +230,56 @@ TEST(Crypto, random)
     /* test that tr_rand_int() stays in-bounds */
     for (int i = 0; i < 100000; ++i)
     {
-        int const val = tr_rand_int(100);
-        EXPECT_LE(0, val);
-        EXPECT_LT(val, 100);
+        auto const val = tr_rand_int(100U);
+        EXPECT_LE(0U, val);
+        EXPECT_LT(val, 100U);
     }
 }
+
+using CryptoRandBufferTest = ::testing::TestWithParam<size_t>;
+
+TEST_P(CryptoRandBufferTest, randBuf)
+{
+    static auto constexpr Iterations = 1000U;
+
+    auto const width = GetParam();
+    auto const empty = std::vector<uint8_t>(width, 0);
+
+    auto buf = empty;
+
+    for (size_t i = 0; i < Iterations; ++i)
+    {
+        auto tmp = buf;
+        tr_rand_buffer(std::data(tmp), std::size(tmp));
+        EXPECT_NE(tmp, empty);
+        EXPECT_NE(tmp, buf);
+        buf = tmp;
+    }
+
+    for (size_t i = 0; i < Iterations; ++i)
+    {
+        auto tmp = buf;
+        EXPECT_TRUE(tr_rand_buffer_crypto(std::data(tmp), std::size(tmp)));
+        EXPECT_NE(tmp, empty);
+        EXPECT_NE(tmp, buf);
+        buf = tmp;
+    }
+
+    for (size_t i = 0; i < Iterations; ++i)
+    {
+        auto tmp = buf;
+        tr_rand_buffer_std(std::data(tmp), std::size(tmp));
+        EXPECT_NE(tmp, empty);
+        EXPECT_NE(tmp, buf);
+        buf = tmp;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Crypto,
+    CryptoRandBufferTest,
+    ::testing::Values(32, 100, 1024, 3000),
+    ::testing::PrintToStringParamName{});
 
 TEST(Crypto, base64)
 {
@@ -266,14 +297,14 @@ TEST(Crypto, base64)
         auto buf = std::string{};
         for (size_t j = 0; j < i; ++j)
         {
-            buf += char(tr_rand_int_weak(256));
+            buf += static_cast<char>(tr_rand_int(256U));
         }
         EXPECT_EQ(buf, tr_base64_decode(tr_base64_encode(buf)));
 
         buf = std::string{};
         for (size_t j = 0; j < i; ++j)
         {
-            buf += char(1 + tr_rand_int_weak(255));
+            buf += static_cast<char>(1U + tr_rand_int(255U));
         }
         EXPECT_EQ(buf, tr_base64_decode(tr_base64_encode(buf)));
     }
